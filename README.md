@@ -18,7 +18,7 @@
  
 ### Working with the mocap-gs repo
 - the module "data_streams" contains the wrapper-classes CameraStream (wrapping the IDS Peak API) and MoCapStream (wrapping the NatNetSDK Python Client)
-- execute scripts via ```python -m scripts.my_script.py``` or
+- execute scripts via ```python -m scripts.my_script``` or
 - play around with the CameraStream and MoCapStream classes
 
 ## Documentation for me: How to build the mocap-gs repo
