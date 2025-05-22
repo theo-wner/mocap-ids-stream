@@ -1,10 +1,11 @@
 # 3DGS with Mocap - Documentation
 
-## Connect IDS U3-31J0CP Rev.2.2 to workstation
-- plug in usb-cable 
-- use script ids_camera_stream.py
+## Manual for working with the mocap-gs repo
 
-## Set up Motive on any PC in same network (can probably also be workstation)
+### Connect IDS U3-31J0CP Rev.2.2 to workstation
+- plug in usb-cable 
+
+### Set up Motive on any PC in the same network
 - perform camera calibration and set ground plane
 - enable streaming: View --> Data Streaming Pane --> Streaming Pane appears on the right
 - settings: 
@@ -14,8 +15,14 @@
     - Transmission Type: Unicast
     - Multicast Interface: Same as Local Interface (currently 172.22.147.182)
     - VRPN Broadcast Port: leave as it is (3883)
+ 
+### Working with the mocap-gs repo
+- the module "data_streams" contains the wrapper-classes CameraStream (wrapping the IDS Peak API) and MoCapStream (wrapping the NatNetSDK Python Client)
+- execute scripts via ```bash python -m scripts.my_script.py```
 
-## Set up Python client on the workstation
+
+## Documentation for me: How to build the mocap-gs repo
+### Set up Python client on the workstation
 - download and extract NatNet SDK from https://optitrack.com/support/downloads/developer-tools.html#natnet-sdk
 - the Python API consists of the modules in ./samples/PythonClient (DataDescriptions.py, MoCapData.py, NatNetClient.py)
 - in order for the NatNet Python Client to close the streams properly the following changes have to be made to NatNetClient.py:
