@@ -1,5 +1,6 @@
 """
 MoCap Streaming Module for an OptiTrack System running on Motive
+Contains wrapper class MoCapStream, that wraps the NatNetSDK Python Client
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
