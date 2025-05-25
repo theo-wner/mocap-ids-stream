@@ -1,0 +1,12 @@
+name: mocap-gs
+channels:
+  - defaults
+dependencies:
+  - python=3.10 
+  - pip
+  - pip:
+      - numpy
+      - opencv-python
+      - matplotlib
+      - scipy
+      - ids_peak
