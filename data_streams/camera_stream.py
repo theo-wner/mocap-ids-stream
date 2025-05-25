@@ -1,5 +1,6 @@
 """
 Camera streaming module for an IDS camera.
+Contains wrapper class CameraStream, that wraps the IDS Peak API
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
