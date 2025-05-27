@@ -28,12 +28,16 @@ def check_camera_framerate(camera_stream, duration=5):
     start_time = time.time()
     frame_count = 0
     last_frame = None
+    cnt = 0
 
     while time.time() - start_time < duration:
         frame = camera_stream.get_current_frame()
         if frame is not None and not (last_frame is frame):
             frame_count += 1
             last_frame = frame
+        else:
+            cnt += 1
+    print(f"Skipped {cnt} identical frames.")
 
     elapsed = time.time() - start_time
     framerate = frame_count / elapsed
@@ -58,11 +62,16 @@ def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
     pose_count = 0
     last_pose = None
 
+    cnt = 0
     while time.time() - start_time < duration:
         pose = mocap_stream.get_current_rigid_body_pose(rigid_body_id)
         if pose is not None and not last_pose is pose:
             pose_count += 1
             last_pose = pose
+        else:
+            cnt += 1
+
+    print(f"Skipped {cnt} identical poses.")
 
     elapsed = time.time() - start_time
     framerate = pose_count / elapsed
@@ -70,7 +79,7 @@ def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
 
 if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
-    camera_stream = CameraStream(frame_rate=48, exposure_time=10000, resize=(500, 500))
+    camera_stream = CameraStream(frame_rate=48, exposure_time=100, resize=(500, 500))
     time.sleep(2)
 
     try:
