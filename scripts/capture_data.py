@@ -25,16 +25,18 @@ try:
             break
 
         if key == ord('c'):
-            frame = camera_stream.get_current_frame()
-            pose, timestamp = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
+            frame, timestamp_cam = camera_stream.get_current_frame()
+            pose, timestamp_mocap = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
 
             if pose:
-                print(f"Pose for timestamp {timestamp}: Position: {pose['position']}, Rotation: {pose['rotation']}")
+                print(f"Pose: Position: {pose['position']}, Rotation: {pose['rotation']}")
+                print(f'MoCap Timestamp: {timestamp_mocap}')
             else:
                 print("No pose data received.")
 
             if frame is not None:
                 cv2.imshow("Camera", frame)
+                print(f'Camera Timestamp: {timestamp_cam}')
             else:
                 print("No frame received.")
 

@@ -34,6 +34,7 @@ class CameraStream:
             resize (tuple): Resize dimensions for the output image.
         """
         self.frame = None
+        self.timestamp = None
         self.running = True
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
@@ -62,14 +63,14 @@ class CameraStream:
             device = device_manager.Devices()[0].OpenDevice(ids_peak.DeviceAccessType_Control)
             remote_nodemap = device.RemoteDevice().NodeMaps()[0]
 
-            # Load default settings
-            remote_nodemap.FindNode("UserSetSelector").SetCurrentEntry("Default")
-            remote_nodemap.FindNode("UserSetLoad").Execute()
-            remote_nodemap.FindNode("UserSetLoad").WaitUntilDone()
-
-            # Set camera parameters
+            # Set acquisition parameters
             remote_nodemap.FindNode("AcquisitionFrameRate").SetValue(self.frame_rate)
             remote_nodemap.FindNode("ExposureTime").SetValue(self.exposure_time)
+
+            # Enable Metadata (Chunks) for timestamp retrieval
+            remote_nodemap.FindNode("ChunkModeActive").SetValue(True)
+            remote_nodemap.FindNode("ChunkSelector").SetCurrentEntry("Timestamp")
+            remote_nodemap.FindNode("ChunkEnable").SetValue(True)
 
             # Prepare data stream
             data_stream = device.DataStreams()[0].OpenDataStream()
@@ -88,6 +89,10 @@ class CameraStream:
             while self.running:
                 try:
                     buffer = data_stream.WaitForFinishedBuffer(1000)
+                    if buffer.HasChunks():
+                        remote_nodemap.UpdateChunkNodes(buffer)
+                        timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
+
                     img = ids_peak_ipl_extension.BufferToImage(buffer)
 
                     frame_bayer = img.get_numpy_2D()
@@ -97,6 +102,7 @@ class CameraStream:
                         frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
 
                     self.frame = frame
+                    self.timestamp = timestamp
                     data_stream.QueueBuffer(buffer)
                 except Exception as e:
                     print(f"Streaming exception: {e}")
@@ -125,7 +131,7 @@ class CameraStream:
         Returns:
             numpy.ndarray or None: The latest image frame, or None if not yet available.
         """
-        return self.frame
+        return (self.frame, self.timestamp)
 
     def stop(self):
         """
