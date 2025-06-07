@@ -6,7 +6,6 @@ Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-import os
 import numpy as np
 from .NatNetSDK import NatNetClient
 
@@ -33,13 +32,11 @@ class MoCapStream:
         self.client.set_use_multicast(False)
         
         # Set up listeners for rigid_bodies and frames (needed for time sync) --> No threading needed because the NatNet client handles this internally
-        self.client.rigid_body_listener = self.rigid_body_listenerc
+        self.client.rigid_body_listener = self.rigid_body_listener
         self.client.new_frame_listener = self.new_frame_listener
 
-        # Member variable to store the latest timestamp
-        self.latest_timestamp = None
-
-        # Dictionary to store the poses and timestamps of all rigid bodies
+        # Member variables to store the latest data
+        self.timestamp = None
         self.rigid_body_poses = {}
 
         # Check if the client is connected
@@ -57,7 +54,7 @@ class MoCapStream:
         Args:
             frame_data (dict): The data of the new frame, which includes a timestamp.
         """
-        self.latest_timestamp = frame_data.get('timestamp')
+        self.timestamp = frame_data.get('timestamp')
 
     def rigid_body_listener(self, rigid_body_id, position, rotation):
         """
@@ -68,11 +65,9 @@ class MoCapStream:
             position (tuple): The position of the rigid body (x, y, z).
             rotation (tuple): The rotation of the rigid body (qx, qy, qz, qw).
         """
-        timestamp = self.latest_timestamp
         self.rigid_body_poses[rigid_body_id] = {
             'position': np.array(position),
             'rotation': np.array(rotation),
-            'timestamp': timestamp
         }
 
     def get_current_rigid_body_pose(self, rigid_body_id):
@@ -83,12 +78,13 @@ class MoCapStream:
             id (int): The ID of the rigid body.
 
         Returns:
-            dict: A dictionary containing the position and rotation of the rigid body.
+            tuple: A tuple containing the position and rotation of the rigid body, and the timestamp.
+                   If the rigid body is not found, returns (None, None).
         """
         if rigid_body_id in self.rigid_body_poses:
-            return self.rigid_body_poses[rigid_body_id]
+            return (self.rigid_body_poses[rigid_body_id], self.timestamp)
         else:
-            return None
+            return (None, None)
         
     def stop(self):
         """

@@ -8,7 +8,6 @@ Author:
 from data_streams.camera_stream import CameraStream
 from data_streams.mocap_stream import MoCapStream
 import cv2
-import time
 
 # Initialize streams
 mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
@@ -26,14 +25,11 @@ try:
             break
 
         if key == ord('c'):
-            start_time = time.time()
             frame = camera_stream.get_current_frame()
-            pose = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
-            elapsed_time = (time.time() - start_time) * 1000000
-            print(f"Time taken to get frame and pose: {elapsed_time:.4f} microseconds")
+            pose, timestamp = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
 
             if pose:
-                print(f"Current pose: {pose}")
+                print(f"Pose for timestamp {timestamp}: Position: {pose['position']}, Rotation: {pose['rotation']}")
             else:
                 print("No pose data received.")
 
