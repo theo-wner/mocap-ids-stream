@@ -32,9 +32,15 @@ class MoCapStream:
         self.client.set_server_address(server_ip)
         self.client.set_use_multicast(False)
         
-        # Set up rigid body listener --> No threading needed because the NatNet client handles this internally
+        # Set up listeners for rigid_bodies and frames (needed for time sync) --> No threading needed because the NatNet client handles this internally
+        self.client.rigid_body_listener = self.rigid_body_listenerc
+        self.client.new_frame_listener = self.new_frame_listener
+
+        # Member variable to store the latest timestamp
+        self.latest_timestamp = None
+
+        # Dictionary to store the poses and timestamps of all rigid bodies
         self.rigid_body_poses = {}
-        self.client.rigid_body_listener = self.rigid_body_listener
 
         # Check if the client is connected
         if not self.client.run("d"):
@@ -44,18 +50,29 @@ class MoCapStream:
         self.client.set_print_level(0)  # print_level = 0 off, print_level = 1 on, print_level = >1 on / print every nth mocap frame:
                                         # Addionally, comment out line 1663 in NatNetClient.py
 
+    def new_frame_listener(self, frame_data):
+        """
+        Listener for new frame data to capture the latest timestamp.
+
+        Args:
+            frame_data (dict): The data of the new frame, which includes a timestamp.
+        """
+        self.latest_timestamp = frame_data.get('timestamp')
+
     def rigid_body_listener(self, rigid_body_id, position, rotation):
         """
-        Callback function to handle the rigid body pose data.
+        Listener to handle the rigid body pose data.
 
         Args:
             id (int): The ID of the rigid body.
             position (tuple): The position of the rigid body (x, y, z).
             rotation (tuple): The rotation of the rigid body (qx, qy, qz, qw).
         """
+        timestamp = self.latest_timestamp
         self.rigid_body_poses[rigid_body_id] = {
             'position': np.array(position),
-            'rotation': np.array(rotation)
+            'rotation': np.array(rotation),
+            'timestamp': timestamp
         }
 
     def get_current_rigid_body_pose(self, rigid_body_id):
