@@ -10,6 +10,7 @@ import threading
 import cv2
 from ids_peak import ids_peak
 from ids_peak import ids_peak_ipl_extension
+from datetime import timedelta
 
 class CameraStream:
     """
@@ -89,20 +90,12 @@ class CameraStream:
             while self.running:
                 try:
                     buffer = data_stream.WaitForFinishedBuffer(1000)
-                    if buffer.HasChunks():
-                        remote_nodemap.UpdateChunkNodes(buffer)
-                        timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
 
-                    img = ids_peak_ipl_extension.BufferToImage(buffer)
+                    self.frame = ids_peak_ipl_extension.BufferToImage(buffer)
 
-                    frame_bayer = img.get_numpy_2D()
-                    frame = cv2.cvtColor(frame_bayer, cv2.COLOR_BAYER_BG2BGR)
+                    remote_nodemap.UpdateChunkNodes(buffer)
+                    self.timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
 
-                    if self.resize:
-                        frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
-
-                    self.frame = frame
-                    self.timestamp = timestamp
                     data_stream.QueueBuffer(buffer)
                 except Exception as e:
                     print(f"Streaming exception: {e}")
@@ -131,7 +124,14 @@ class CameraStream:
         Returns:
             numpy.ndarray or None: The latest image frame, or None if not yet available.
         """
-        return (self.frame, self.timestamp)
+        frame = self.frame.get_numpy_2D()
+        frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR) # Convert Bayer pattern to BGR format
+
+        if self.resize:
+            frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
+
+        timestamp = timedelta(seconds=self.timestamp / 1e9)  # Convert nanoseconds to seconds
+        return (frame, timestamp)
 
     def stop(self):
         """

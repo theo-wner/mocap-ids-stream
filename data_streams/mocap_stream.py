@@ -8,6 +8,7 @@ Author:
 
 import numpy as np
 from .NatNetSDK import NatNetClient
+from datetime import timedelta
 
 class MoCapStream:
     """
@@ -82,7 +83,7 @@ class MoCapStream:
                    If the rigid body is not found, returns (None, None).
         """
         if rigid_body_id in self.rigid_body_poses:
-            return (self.rigid_body_poses[rigid_body_id], self.timestamp)
+            return (self.rigid_body_poses[rigid_body_id], timedelta(seconds=self.timestamp))
         else:
             return (None, None)
         
