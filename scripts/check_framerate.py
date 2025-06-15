@@ -10,42 +10,10 @@ from data_streams.camera_stream import CameraStream
 from data_streams.mocap_stream import MoCapStream
 import time
 
-def check_camera_framerate(camera_stream, duration=5):
-    """
-    Checks the rate in which the get_current_frame() method is able to return a new frame.
-
-    Args:
-        camera_stream (CameraStream): The CameraStream instance to check.
-        duration (int): Duration in seconds for which to measure the framerate.
-
-    Returns:
-        float: The calculated framerate in frames per second (FPS).
-    """
-
-    time.sleep(2)
-    print(f"Measuring CameraStream framerate for {duration} seconds...")
-    
-    start_time = time.time()
-    frame_count = 0
-    last_frame = None
-    cnt = 0
-
-    while time.time() - start_time < duration:
-        frame = camera_stream.get_current_frame()
-        if frame is not None and not (last_frame is frame):
-            frame_count += 1
-            last_frame = frame
-        else:
-            cnt += 1
-    print(f"Skipped {cnt} identical frames.")
-
-    elapsed = time.time() - start_time
-    framerate = frame_count / elapsed
-    return framerate
-
 def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
     """
-    Checks the rate in which the get_current_rigid_body_pose() method is able to return a new pose.
+    Measures the framerate of the MoCapStream by counting the number of unique poses and timestamps for a specific rigid body.
+
     Args:
         mocap_stream (MoCapStream): The MoCapStream instance to check.
         rigid_body_id (int): The ID of the rigid body to check.
@@ -56,37 +24,98 @@ def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
     """
 
     time.sleep(2)
+    print("-------------------------------------------------------------------")
     print(f"Measuring MoCapStream framerate for {duration} seconds...")
 
     start_time = time.time()
-    pose_count = 0
+    different_timestamps = 0
+    equal_timestamps = 0
+    last_timestamp = None
+
+    different_poses = 0
+    equal_poses = 0
     last_pose = None
 
-    cnt = 0
     while time.time() - start_time < duration:
-        pose = mocap_stream.get_current_rigid_body_pose(rigid_body_id)
-        if pose is not None and not last_pose is pose:
-            pose_count += 1
+        pose, timestamp = mocap_stream.get_current_rigid_body_pose(rigid_body_id)
+        if pose is not None and not (last_pose is pose):
+            different_poses += 1
             last_pose = pose
         else:
-            cnt += 1
-
-    print(f"Skipped {cnt} identical poses.")
+            equal_poses += 1
+        if timestamp is not None and not last_timestamp == timestamp:
+            different_timestamps += 1
+            last_timestamp = timestamp
+        else:
+            equal_timestamps += 1
 
     elapsed = time.time() - start_time
-    framerate = pose_count / elapsed
-    return framerate
+    timestamps_per_second = different_timestamps / elapsed
+    poses_per_second = different_poses / elapsed
+    
+    print(f"Skipped {equal_timestamps} identical timestamps.")
+    print(f"Skipped {equal_poses} identical poses.")
+    print(f"MoCap is running at {timestamps_per_second:.2f} Timestamps Per Second (TPS)")
+    print(f"MoCap is running at {poses_per_second:.2f} Poses Per Second (PPS)")
+    print("-------------------------------------------------------------------")
+
+
+def check_camera_framerate(camera_stream, duration=5):
+    """
+    Measures the framerate of the CameraStream by counting the number of unique frames and timestamps.
+
+    Args:
+        camera_stream (CameraStream): The CameraStream instance to check.
+        duration (int): Duration in seconds for which to measure the framerate.
+
+    Returns:
+        float: The calculated framerate in frames per second (FPS).
+    """
+
+    time.sleep(2)
+    print("-------------------------------------------------------------------")
+    print(f"Measuring CameraStream framerate for {duration} seconds...")
+    
+    start_time = time.time()
+    different_timestamps = 0
+    equal_timestamps = 0
+    last_timestamp = None
+
+    different_frames = 0
+    equal_frames = 0
+    last_frame = None
+
+    while time.time() - start_time < duration:
+        frame, timestamp = camera_stream.get_current_frame()
+        if timestamp is not None and not last_timestamp == timestamp:
+            different_timestamps += 1
+            last_timestamp = timestamp
+        else:
+            equal_timestamps += 1
+        if frame is not None and not (last_frame is frame):
+            different_frames += 1
+            last_frame = frame
+        else:
+            equal_frames += 1
+
+    elapsed = time.time() - start_time
+    timestamps_per_second = different_timestamps / elapsed
+    frames_per_second = different_frames / elapsed
+
+    print(f"Skipped {equal_timestamps} identical timestamps.")
+    print(f"Skipped {equal_frames} identical frames.")
+    print(f"Camera is running at {timestamps_per_second:.2f} Timestamps Per Second (TPS)")
+    print(f"Camera is running at {frames_per_second:.2f} Frames Per Second (FPS)")
+    print("-------------------------------------------------------------------")
 
 if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
-    camera_stream = CameraStream(frame_rate=48, exposure_time=100, resize=(500, 500))
+    camera_stream = CameraStream(frame_rate=30, exposure_time=100, resize=(500, 500))
     time.sleep(2)
 
     try:
-        camera_framerate = check_camera_framerate(camera_stream)
-        mocap_framerate = check_mocap_framerate(mocap_stream)
-        print(f"Camera framerate: {camera_framerate:.2f} FPS")
-        print(f"MoCap framerate: {mocap_framerate:.2f} FPS")
+        check_camera_framerate(camera_stream)
+        check_mocap_framerate(mocap_stream)
     finally:
         mocap_stream.stop()
         camera_stream.stop()

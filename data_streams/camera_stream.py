@@ -91,9 +91,16 @@ class CameraStream:
                 try:
                     buffer = data_stream.WaitForFinishedBuffer(1000)
 
-                    self.frame = ids_peak_ipl_extension.BufferToImage(buffer)
-
                     remote_nodemap.UpdateChunkNodes(buffer)
+
+                    frame = ids_peak_ipl_extension.BufferToImage(buffer)
+                    frame = frame.get_numpy_2D()
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR) # Convert Bayer pattern to BGR format
+                    if self.resize:
+                        self.frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
+                    else:
+                        self.frame = frame
+
                     self.timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
 
                     data_stream.QueueBuffer(buffer)
@@ -124,14 +131,10 @@ class CameraStream:
         Returns:
             numpy.ndarray or None: The latest image frame, or None if not yet available.
         """
-        frame = self.frame.get_numpy_2D()
-        frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR) # Convert Bayer pattern to BGR format
-
-        if self.resize:
-            frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
 
         timestamp = timedelta(seconds=self.timestamp / 1e9)  # Convert nanoseconds to seconds
-        return (frame, timestamp)
+
+        return (self.frame, timestamp)
 
     def stop(self):
         """
