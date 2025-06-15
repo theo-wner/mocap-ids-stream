@@ -23,7 +23,6 @@ def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
         float: The calculated framerate in poses per second (PPS).
     """
 
-    time.sleep(2)
     print("-------------------------------------------------------------------")
     print(f"Measuring MoCapStream framerate for {duration} seconds...")
 
@@ -72,7 +71,6 @@ def check_camera_framerate(camera_stream, duration=5):
         float: The calculated framerate in frames per second (FPS).
     """
 
-    time.sleep(2)
     print("-------------------------------------------------------------------")
     print(f"Measuring CameraStream framerate for {duration} seconds...")
     
@@ -110,12 +108,12 @@ def check_camera_framerate(camera_stream, duration=5):
 
 if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
-    camera_stream = CameraStream(frame_rate=30, exposure_time=100, resize=(500, 500))
-    time.sleep(2)
+    camera_stream = CameraStream(frame_rate=15, exposure_time=100, resize=(500, 500))
+    time.sleep(1)
 
     try:
-        check_camera_framerate(camera_stream)
-        check_mocap_framerate(mocap_stream)
+        check_camera_framerate(camera_stream, duration=1)
+        check_mocap_framerate(mocap_stream, duration=1)
     finally:
         mocap_stream.stop()
         camera_stream.stop()
