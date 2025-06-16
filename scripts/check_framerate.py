@@ -108,7 +108,7 @@ def check_camera_framerate(camera_stream, duration=5):
 
 if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
-    camera_stream = CameraStream(frame_rate=30, exposure_time=100, resize=(500, 500))
+    camera_stream = CameraStream(frame_rate=48, exposure_time=100, resize=(500, 500))
     time.sleep(1)
 
     try:
