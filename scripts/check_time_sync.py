@@ -9,10 +9,11 @@ from data_streams.camera_stream import CameraStream
 from data_streams.mocap_stream import MoCapStream
 import time
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Initialize streams
 mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
-camera_stream = CameraStream(frame_rate=30, exposure_time=20000, resize=(500, 500))
+camera_stream = CameraStream(frame_rate=48, exposure_time=200, resize=(500, 500))
 time.sleep(1)  # Allow streams to initialize
 
 # Prepare for plotting
@@ -32,13 +33,27 @@ elapsed_times = []
 camera_offsets = []
 mocap_offsets = []
 
+# Add lists to store durations
+durations_python = []
+durations_mocap = []
+durations_cam = []
+
 # Capture Loop
 cnt = 0
 try:
     while True:
+        # Measure time for each line
+        t0 = time.time()
         timestamp_python = time.time()
+        t1 = time.time()
         _, timestamp_mocap = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
+        t2 = time.time()
         _, timestamp_cam = camera_stream.get_current_frame()
+        t3 = time.time()
+
+        durations_python.append(t1 - t0)
+        durations_mocap.append(t2 - t1)
+        durations_cam.append(t3 - t2)
 
         if cnt == 0:
             first_timestamp_python = timestamp_python
@@ -60,15 +75,19 @@ try:
         lines["mocap"].set_data(elapsed_times, mocap_offsets)
         ax.relim()
         ax.autoscale_view(scalex=True, scaley=True)  # Autoscale x, keep y fixed
-        plt.pause(0.000001)
+        plt.pause(0.01)
 
-        if delta_python > 10:
+        if delta_python > 30:
             print("Stopping after 10 seconds of data collection.")
             break
 
         cnt += 1
 
 finally:
+    print("Final mean timings:")
+    print(f"Mean time for time.time(): {np.mean(durations_python)*1e3:.3f} ms")
+    print(f"Mean time for mocap_stream.get_current_rigid_body_pose: {np.mean(durations_mocap)*1e3:.3f} ms")
+    print(f"Mean time for camera_stream.get_current_frame: {np.mean(durations_cam)*1e3:.3f} ms")
     mocap_stream.stop()
     camera_stream.stop()
     plt.ioff()
