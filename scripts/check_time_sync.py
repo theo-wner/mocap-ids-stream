@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Initialize streams
-mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
+mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
 camera_stream = CameraStream(frame_rate=48, exposure_time=200, resize=(500, 500))
 time.sleep(1)  # Allow streams to initialize
 
@@ -46,7 +46,7 @@ try:
         t0 = time.time()
         timestamp_python = time.time()
         t1 = time.time()
-        _, timestamp_mocap = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
+        _, timestamp_mocap = mocap_stream.get_current_rigid_body_pose()
         t2 = time.time()
         _, timestamp_cam = camera_stream.get_current_frame()
         t3 = time.time()

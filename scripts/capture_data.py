@@ -11,7 +11,7 @@ import cv2
 from datetime import timedelta
 
 # Initialize streams
-mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
+mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
 camera_stream = CameraStream(frame_rate=48, exposure_time=10000, resize=(500, 500))
 
 cv2.namedWindow("Camera")
@@ -28,7 +28,7 @@ try:
 
         if key == ord('c'):
             frame, timestamp_cam = camera_stream.get_current_frame()
-            pose, timestamp_mocap = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
+            pose, timestamp_mocap = mocap_stream.get_current_rigid_body_pose()
 
             if cnt == 0:
                 first_timestamp_cam = timestamp_cam

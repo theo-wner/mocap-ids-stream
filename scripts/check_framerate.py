@@ -10,7 +10,7 @@ from data_streams.camera_stream import CameraStream
 from data_streams.mocap_stream import MoCapStream
 import time
 
-def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
+def check_mocap_framerate(mocap_stream, duration=5):
     """
     Measures the framerate of the MoCapStream by counting the number of unique poses and timestamps for a specific rigid body.
 
@@ -36,7 +36,7 @@ def check_mocap_framerate(mocap_stream, rigid_body_id=1, duration=5):
     last_pose = None
 
     while time.time() - start_time < duration:
-        pose, timestamp = mocap_stream.get_current_rigid_body_pose(rigid_body_id)
+        pose, timestamp = mocap_stream.get_current_rigid_body_pose()
         if pose is not None and not (last_pose is pose):
             different_poses += 1
             last_pose = pose
@@ -107,7 +107,7 @@ def check_camera_framerate(camera_stream, duration=5):
     print("-------------------------------------------------------------------")
 
 if __name__ == "__main__":
-    mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
+    mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
     camera_stream = CameraStream(frame_rate=48, exposure_time=100, resize=(500, 500))
     time.sleep(1)
 

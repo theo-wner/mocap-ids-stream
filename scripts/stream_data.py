@@ -13,7 +13,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 # Initialize streams
-mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182")
+mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
 camera_stream = CameraStream(frame_rate=30, exposure_time=20000, resize=(500, 500))
 
 # Set up 3D plot
@@ -33,8 +33,8 @@ quivers = {'x': None, 'y': None, 'z': None}
 # Capture Loop
 try:
     while True:
-        frame = camera_stream.get_current_frame()
-        pose = mocap_stream.get_current_rigid_body_pose(rigid_body_id=1)
+        frame, _ = camera_stream.get_current_frame()
+        pose, _ = mocap_stream.get_current_rigid_body_pose()
 
         if pose:
             pos = np.array(pose['position'])           # [x, y, z]

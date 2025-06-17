@@ -34,12 +34,15 @@ class CameraStream:
             exposure_time (double): Exposure time in microseconds.
             resize (tuple): Resize dimensions for the output image.
         """
-        self.frame = None
-        self.timestamp = None
+        # Member variables to control the camera stream
         self.running = True
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
         self.resize = resize
+
+        # Member variables to store the latest data
+        self.timestamp = None
+        self.frame = None
 
         # Initialize camera streaming in a separate thread
         self.thread = threading.Thread(target=self.camera_loop)
@@ -101,7 +104,8 @@ class CameraStream:
                     else:
                         self.frame = frame
 
-                    self.timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
+                    timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
+                    self.timestamp = timedelta(seconds=timestamp / 1e9)  # Convert nanoseconds to seconds
 
                     data_stream.QueueBuffer(buffer)
                 except Exception as e:
@@ -132,9 +136,7 @@ class CameraStream:
             numpy.ndarray or None: The latest image frame, or None if not yet available.
         """
 
-        timestamp = timedelta(seconds=self.timestamp / 1e9)  # Convert nanoseconds to seconds
-
-        return (self.frame, timestamp)
+        return (self.frame, self.timestamp)
 
     def stop(self):
         """
