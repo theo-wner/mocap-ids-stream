@@ -358,12 +358,18 @@ class NatNetClient:
 
         rigid_body = MoCapData.RigidBody(new_id, pos, rot)
 
+        # -------------------------------------------------------
+        # CHANGE BY THEO START: comment out the rigid body listener
+        # -------------------------------------------------------
         # Send information to any listener.
-        if self.rigid_body_listener is not None:
-            self.rigid_body_listener( new_id, pos, rot )
+        #if self.rigid_body_listener is not None:
+            #self.rigid_body_listener( new_id, pos, rot )
+        # -------------------------------------------------------
+        # CHANGE BY THEO END:
+        # -------------------------------------------------------
 
         # RB Marker Data ( Before version 3.0.  After Version 3.0 Marker data is in description )
-        if( major < 3  and major != 0) :
+        if ( major < 3  and major != 0) :
             # Marker count (4 bytes)
             marker_count = int.from_bytes( data[offset:offset+4], byteorder='little',  signed=True )
             offset += 4
@@ -417,6 +423,15 @@ class NatNetClient:
                 rigid_body.tracking_valid = True
             else:
                 rigid_body.tracking_valid = False
+
+        # -------------------------------------------------------
+        # CHANGE BY THEO START: modify the rigid body listener to include marker error and tracking valid
+        # -------------------------------------------------------
+        if self.rigid_body_listener is not None:
+            self.rigid_body_listener(new_id, pos, rot, marker_error, tracking_valid)
+        # -------------------------------------------------------
+        # CHANGE BY THEO END:
+        # -------------------------------------------------------
 
         return offset, rigid_body
 

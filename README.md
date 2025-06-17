@@ -24,7 +24,9 @@
 ## Documentation for me: How to build the mocap-gs repo
 ### Set up Python client on the workstation
 - download and extract NatNet SDK from https://optitrack.com/support/downloads/developer-tools.html#natnet-sdk
-- the Python API consists of the modules in ./samples/PythonClient (DataDescriptions.py, MoCapData.py, NatNetClient.py)
-- in order for the NatNet Python Client to close the streams properly the following changes have to be made to NatNetClient.py:
-    - in the run()-Method: Set data_thread and command_thread as daemon threads via self.data_thread.daemon = True, self.command_thread.daemon = True
-    - in the shutdown()-Method: set timeout to 2 seconds: self.command_thread.join(timeout=2), self.data_thread.join(timeout=2)
+- the Python API consists of the modules in ./samples/PythonClient (```DataDescriptions.py```, ```MoCapData.py```, ```NatNetClient.py```)
+- in order for the NatNet Python Client to close the streams properly the following changes have to be made to ```NatNetClient.py```:
+    - in the ```run()```-Method: Set ```data_thread``` and ```command_thread``` as daemon threads via ```self.data_thread.daemon = True, self.command_thread.daemon = True```
+    - in the ```shutdown()```-Method: set timeout to 2 seconds: ```self.command_thread.join(timeout=2), self.data_thread.join(timeout=2)```
+- in order for the NatNet Python Client to also return quality metrics of the rigid body poses the following changes have to be made to ```NatNetClient.py:```
+    - in the __unpack_rigid_body()-Method: comment out ```if self.rigid_body_listener is not None: self.rigid_body_listener( new_id, pos, rot )``` and replace by ```if self.rigid_body_listener is not None: self.rigid_body_listener(new_id, pos, rot, marker_error, tracking_valid)``` at the end of the method

@@ -43,6 +43,8 @@ class MoCapStream:
         # Member variables to store the latest data
         self.timestamp = None
         self.rigid_body_pose = None
+        self.mean_error = None
+        self.tracking_valid = None
 
         # Check if the client is connected
         if not self.client.run("d"):
@@ -62,7 +64,7 @@ class MoCapStream:
         timestamp = frame_data.get('timestamp')
         self.timestamp = timedelta(seconds=timestamp)
 
-    def rigid_body_listener(self, rigid_body_id, position, rotation):
+    def rigid_body_listener(self, rigid_body_id, position, rotation, marker_error, tracking_valid):
         """
         Listener to handle the rigid body pose data.
 
@@ -70,8 +72,13 @@ class MoCapStream:
             id (int): The ID of the rigid body.
             position (tuple): The position of the rigid body (x, y, z).
             rotation (tuple): The rotation of the rigid body (qx, qy, qz, qw).
+            marker_error (float): The mean marker error for the rigid body.
+            tracking_valid (bool): Whether the tracking is valid for the rigid body.
         """
         if rigid_body_id == self.rigid_body_id:
+            self.mean_error = marker_error
+            self.tracking_valid = tracking_valid
+
             self.rigid_body_pose = {
                 'position': np.array(position),
                 'rotation': np.array(rotation),
@@ -79,16 +86,15 @@ class MoCapStream:
 
     def get_current_data(self):
         """
-        Retrieves the pose of a certain rigid body.
-
-        Args:
-            id (int): The ID of the rigid body.
+        Retrieves the pose of the rigid body defined by the rigid_body_id.
 
         Returns:
-            dict: A dictionary containing the timestamp and the pose of the rigid body.
+            dict: A dictionary containing the data of the rigid body pose.
         """
         return {'timestamp': self.timestamp,
-                'rigid_body_pose': self.rigid_body_pose}
+                'rigid_body_pose': self.rigid_body_pose,
+                'mean_error': self.mean_error,
+                'tracking_valid': self.tracking_valid}
     
     def stop(self):
         """
