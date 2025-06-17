@@ -36,7 +36,10 @@ def check_mocap_framerate(mocap_stream, duration=5):
     last_pose = None
 
     while time.time() - start_time < duration:
-        pose, timestamp = mocap_stream.get_current_rigid_body_pose()
+        mocap_dict = mocap_stream.get_current_data()
+        timestamp = mocap_dict['timestamp']
+        pose = mocap_dict['rigid_body_pose']
+
         if pose is not None and not (last_pose is pose):
             different_poses += 1
             last_pose = pose
@@ -84,7 +87,10 @@ def check_camera_framerate(camera_stream, duration=5):
     last_frame = None
 
     while time.time() - start_time < duration:
-        frame, timestamp = camera_stream.get_current_frame()
+        cam_dict = camera_stream.get_current_data()
+        timestamp = cam_dict['timestamp']
+        frame = cam_dict['frame']
+
         if timestamp is not None and not last_timestamp == timestamp:
             different_timestamps += 1
             last_timestamp = timestamp

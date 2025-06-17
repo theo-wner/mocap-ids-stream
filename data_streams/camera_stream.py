@@ -128,15 +128,14 @@ class CameraStream:
             ids_peak.Library.Close()
             print("Camera stream stopped.")
 
-    def get_current_frame(self):
+    def get_current_data(self):
         """
         Returns the latest image frame captured by the camera.
 
         Returns:
-            numpy.ndarray or None: The latest image frame, or None if not yet available.
+            dict: A dictionary containing the timestamp and the latest image frame.
         """
-
-        return (self.frame, self.timestamp)
+        return {'timestamp': self.timestamp, 'frame': self.frame}
 
     def stop(self):
         """

@@ -27,8 +27,13 @@ try:
             break
 
         if key == ord('c'):
-            frame, timestamp_cam = camera_stream.get_current_frame()
-            pose, timestamp_mocap = mocap_stream.get_current_rigid_body_pose()
+            cam_dict = camera_stream.get_current_data()
+            timestamp_cam = cam_dict['timestamp']
+            frame = cam_dict['frame']
+
+            mocap_dict = mocap_stream.get_current_data()
+            timestamp_mocap = mocap_dict['timestamp']
+            pose = mocap_dict['rigid_body_pose']
 
             if cnt == 0:
                 first_timestamp_cam = timestamp_cam

@@ -46,9 +46,11 @@ try:
         t0 = time.time()
         timestamp_python = time.time()
         t1 = time.time()
-        _, timestamp_mocap = mocap_stream.get_current_rigid_body_pose()
+        mocap_dict = mocap_stream.get_current_data()
+        timestamp_mocap = mocap_dict['timestamp']
         t2 = time.time()
-        _, timestamp_cam = camera_stream.get_current_frame()
+        cam_dict = camera_stream.get_current_data()
+        timestamp_cam = cam_dict['timestamp']
         t3 = time.time()
 
         durations_python.append(t1 - t0)

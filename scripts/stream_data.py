@@ -33,8 +33,11 @@ quivers = {'x': None, 'y': None, 'z': None}
 # Capture Loop
 try:
     while True:
-        frame, _ = camera_stream.get_current_frame()
-        pose, _ = mocap_stream.get_current_rigid_body_pose()
+        cam_dict = camera_stream.get_current_data()
+        frame = cam_dict['frame']
+
+        mocap_dict = mocap_stream.get_current_data()
+        pose = mocap_dict['rigid_body_pose']
 
         if pose:
             pos = np.array(pose['position'])           # [x, y, z]

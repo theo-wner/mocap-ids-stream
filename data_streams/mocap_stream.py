@@ -42,7 +42,7 @@ class MoCapStream:
 
         # Member variables to store the latest data
         self.timestamp = None
-        self.rigid_body_poses = {}
+        self.rigid_body_pose = None
 
         # Check if the client is connected
         if not self.client.run("d"):
@@ -59,7 +59,8 @@ class MoCapStream:
         Args:
             frame_data (dict): The data of the new frame, which includes a timestamp.
         """
-        self.timestamp = frame_data.get('timestamp')
+        timestamp = frame_data.get('timestamp')
+        self.timestamp = timedelta(seconds=timestamp)
 
     def rigid_body_listener(self, rigid_body_id, position, rotation):
         """
@@ -70,12 +71,13 @@ class MoCapStream:
             position (tuple): The position of the rigid body (x, y, z).
             rotation (tuple): The rotation of the rigid body (qx, qy, qz, qw).
         """
-        self.rigid_body_poses[rigid_body_id] = {
-            'position': np.array(position),
-            'rotation': np.array(rotation),
-        }
+        if rigid_body_id == self.rigid_body_id:
+            self.rigid_body_pose = {
+                'position': np.array(position),
+                'rotation': np.array(rotation),
+            }
 
-    def get_current_rigid_body_pose(self):
+    def get_current_data(self):
         """
         Retrieves the pose of a certain rigid body.
 
@@ -83,14 +85,11 @@ class MoCapStream:
             id (int): The ID of the rigid body.
 
         Returns:
-            tuple: A tuple containing the position and rotation of the rigid body, and the timestamp.
-                   If the rigid body is not found, returns (None, None).
+            dict: A dictionary containing the timestamp and the pose of the rigid body.
         """
-        if self.rigid_body_id in self.rigid_body_poses:
-            return (self.rigid_body_poses[self.rigid_body_id], timedelta(seconds=self.timestamp))
-        else:
-            return (None, None)
-        
+        return {'timestamp': self.timestamp,
+                'rigid_body_pose': self.rigid_body_pose}
+    
     def stop(self):
         """
         Stops the NatNet client and releases resources.
