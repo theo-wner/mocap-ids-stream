@@ -17,6 +17,11 @@ mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182
 camera_stream = CameraStream(frame_rate=30, exposure_time=200, resize=(500, 500))
 time.sleep(1)  # Allow streams to initialize
 
+# Start time synchronization
+mocap_stream.start_timing()
+camera_stream.start_timing()
+t0 = time.time()
+
 # Prepare for plotting
 plt.ion()
 fig, ax = plt.subplots()
@@ -26,9 +31,10 @@ lines = {
 }
 ax.set_xlabel("Elapsed Time (s)")
 ax.set_ylabel("Offset from ideal timeline (s)")
-ax.set_title("Timeline Synchronization (Trend Removed)")
 ax.legend()
 ax.grid(True)
+
+time.sleep(1)  # Allow some time for the streams to stabilize
 
 elapsed_times = []
 camera_offsets = []
@@ -41,30 +47,20 @@ last_timestamp_mocap = None
 cnt = 0
 try:
     while True:
-        timestamp_python = time.time()
+        timestamp_python = time.time() - t0
         mocap_dict = mocap_stream.get_current_data()
         timestamp_mocap = mocap_dict['timestamp']
         cam_dict = camera_stream.get_current_data()
         timestamp_cam = cam_dict['timestamp']
 
-        if cnt == 0:
-            first_timestamp_python = timestamp_python
-            first_timestamp_cam = timestamp_cam
-            first_timestamp_mocap = timestamp_mocap
-
-        if (timestamp_cam is not None and timestamp_mocap is not None and
-            timestamp_cam != last_timestamp_cam and
+        # Only update if both timestamps are new
+        if (timestamp_cam != last_timestamp_cam and
             timestamp_mocap != last_timestamp_mocap):
 
-            # Calculate relative time deltas in seconds
-            delta_python = timestamp_python - first_timestamp_python
-            delta_camera = (timestamp_cam - first_timestamp_cam).total_seconds()
-            delta_mocap = (timestamp_mocap - first_timestamp_mocap).total_seconds()
-
             # Subtract slope=1 trend (delta_python) to center timelines at zero
-            elapsed_times.append(delta_python)
-            camera_offsets.append(delta_camera - delta_python)
-            mocap_offsets.append(delta_mocap - delta_python)
+            elapsed_times.append(timestamp_python)
+            camera_offsets.append(timestamp_cam.total_seconds() - timestamp_python)
+            mocap_offsets.append(timestamp_mocap.total_seconds() - timestamp_python)
 
             last_timestamp_cam = timestamp_cam
             last_timestamp_mocap = timestamp_mocap
@@ -77,8 +73,7 @@ try:
 
             plt.pause(np.random.uniform(0.01, 0.1))  # Random pause to simulate real-time plotting
 
-            if delta_python > 30:
-                print("Stopping after 10 seconds of data collection.")
+            if timestamp_python > 30:
                 break
 
             cnt += 1

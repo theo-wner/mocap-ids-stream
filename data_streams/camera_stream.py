@@ -43,6 +43,7 @@ class CameraStream:
         # Member variables to store the latest data
         self.timestamp = None
         self.frame = None
+        self.timing_offset = None
 
         # Initialize camera streaming in a separate thread
         self.thread = threading.Thread(target=self.camera_loop)
@@ -128,6 +129,12 @@ class CameraStream:
             ids_peak.Library.Close()
             print("Camera stream stopped.")
 
+    def start_timing(self):
+        """
+        Sets the current timestamp as the zero reference for relative timing.
+        """
+        self.timing_offset = self.timestamp
+
     def get_current_data(self):
         """
         Returns the latest image frame captured by the camera.
@@ -135,7 +142,12 @@ class CameraStream:
         Returns:
             dict: A dictionary containing the timestamp and the latest image frame.
         """
-        return {'timestamp': self.timestamp, 'frame': self.frame}
+        if self.timing_offset is not None:
+            timestamp = self.timestamp - self.timing_offset
+        else:
+            timestamp = self.timestamp
+
+        return {'timestamp': timestamp, 'frame': self.frame}
 
     def stop(self):
         """

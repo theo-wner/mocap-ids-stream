@@ -8,16 +8,20 @@ Author:
 from data_streams.camera_stream import CameraStream
 from data_streams.mocap_stream import MoCapStream
 import cv2
-from datetime import timedelta
+import time
 
 # Initialize streams
 mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
-camera_stream = CameraStream(frame_rate=48, exposure_time=10000, resize=(500, 500))
+camera_stream = CameraStream(frame_rate=30, exposure_time=10000, resize=(500, 500))
+time.sleep(1)  # Allow some time for the streams to initialize
+
+# Start time synchronization
+mocap_stream.start_timing()
+camera_stream.start_timing()
 
 cv2.namedWindow("Camera")
 
 # Capture Loop
-cnt = 0
 print("Press 'c' to capture one frame and pose. Press 'q' to quit.")
 try:
     while True:
@@ -34,29 +38,18 @@ try:
             mocap_dict = mocap_stream.get_current_data()
             timestamp_mocap = mocap_dict['timestamp']
             pose = mocap_dict['rigid_body_pose']
-
-            if cnt == 0:
-                first_timestamp_cam = timestamp_cam
-                first_timestamp_mocap = timestamp_mocap
-                time_diff_cam = timedelta(seconds=0)
-                time_diff_mocap = timedelta(seconds=0)
-            else:
-                time_diff_cam = timestamp_cam - first_timestamp_cam
-                time_diff_mocap = timestamp_mocap - first_timestamp_mocap
                 
             if pose:
                 print(f"Pose: Position: {pose['position']}, Rotation: {pose['rotation']}")
-                print(f'MoCap Timestamp: {time_diff_mocap}')
+                print(f'MoCap Timestamp: {timestamp_mocap}')
             else:
                 print("No pose data received.")
 
             if frame is not None:
                 cv2.imshow("Camera", frame)
-                print(f'Camera Timestamp: {time_diff_cam}')
+                print(f'Camera Timestamp: {timestamp_cam}')
             else:
                 print("No frame received.")
-
-            cnt += 1
 
 finally:
     mocap_stream.stop()

@@ -45,6 +45,7 @@ class MoCapStream:
         self.rigid_body_pose = None
         self.mean_error = None
         self.tracking_valid = None
+        self.timing_offset = None
 
         # Check if the client is connected
         if not self.client.run("d"):
@@ -84,6 +85,12 @@ class MoCapStream:
                 'rotation': np.array(rotation),
             }
 
+    def start_timing(self):
+        """
+        Sets the current timestamp as the zero reference for relative timing.
+        """
+        self.timing_offset = self.timestamp
+
     def get_current_data(self):
         """
         Retrieves the pose of the rigid body defined by the rigid_body_id.
@@ -91,7 +98,12 @@ class MoCapStream:
         Returns:
             dict: A dictionary containing the data of the rigid body pose.
         """
-        return {'timestamp': self.timestamp,
+        if self.timing_offset is not None:
+            timestamp = self.timestamp - self.timing_offset
+        else:
+            timestamp = self.timestamp
+            
+        return {'timestamp': timestamp,
                 'rigid_body_pose': self.rigid_body_pose,
                 'mean_error': self.mean_error,
                 'tracking_valid': self.tracking_valid}
