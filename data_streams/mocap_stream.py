@@ -13,9 +13,6 @@ from datetime import timedelta
 class MoCapStream:
     """
     A class to stream motion capture data from a NatNet server.
-
-    Attributes: client - The NatNet client instance.
-                rigid_body_poses - A dictionary to store the poses of all rigid bodies.
     """
 
     def __init__(self, client_ip, server_ip, rigid_body_id):

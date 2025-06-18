@@ -15,14 +15,6 @@ from datetime import timedelta
 class CameraStream:
     """
     A class to stream images from an IDS camera in the background.
-
-    Attributes:
-        frame (numpy.ndarray): The latest captured image frame.
-        running (bool): Streaming status flag.
-        frame_rate (int): Frame rate for the camera stream.
-        exposure_time (double): Exposure time in microseconds.
-        resize (tuple): Resize dimensions for the output image.
-        thread (threading.Thread): Thread for camera streaming.
     """
 
     def __init__(self, frame_rate=30, exposure_time=10000, resize=(500, 500)):
