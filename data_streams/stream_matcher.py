@@ -1,5 +1,6 @@
 """
 Module for matching camera frames with MoCap poses based on timestamps and quality filters.
+Contains the StreamMatcher class which manages the matching process in a separate thread.
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
@@ -14,35 +15,34 @@ class StreamMatcher:
     A class to match camera frames with MoCap poses based on timestamps and quality filters.
     """
 
-    def __init__(self, camera_stream, mocap_stream, maxlen=300):
+    def __init__(self, cam_stream, mocap_stream, maxlen=300):
         """
         Initializes the StreamMatcher class.
 
         Args:
-            camera_stream (CameraStream): An instance of the CameraStream class.
+            cam_stream (CamStream): An instance of the CamStream class.
             mocap_stream (MoCapStream): An instance of the MoCapStream class.
             maxlen (int): Maximum length of the buffer for mocap data.
         """
-        self.camera_stream = camera_stream
+        self.cam_stream = cam_stream
         self.mocap_stream = mocap_stream
-        self.cam_buffer = deque(maxlen=maxlen)
         self.mocap_buffer = deque(maxlen=maxlen)
         self.running = False
 
     def start(self):
         self.running = True
-        self.thread = threading.Thread(target=self._update_loop, daemon=True)
+        self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
 
     def stop(self):
         self.running = False
         self.thread.join()
 
-    def _update_loop(self):
+    def update_loop(self):
         last_cam_ts = None
         last_mocap_ts = None
         while self.running:
-            cam_data = self.camera_stream.get_current_data()
+            cam_data = self.cam_stream.get_current_data()
             mocap_data = self.mocap_stream.get_current_data()
             if cam_data and cam_data['timestamp'] is not None and cam_data['timestamp'] != last_cam_ts:
                 self.cam_buffer.append(cam_data)

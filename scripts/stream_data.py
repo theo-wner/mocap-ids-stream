@@ -16,6 +16,10 @@ from scipy.spatial.transform import Rotation as R
 mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
 cam_stream = CamStream(frame_rate=30, exposure_time=20000, resize=(500, 500))
 
+# Start the streams
+mocap_stream.start()
+cam_stream.start()
+
 # Set up 3D plot
 plt.ion()
 fig = plt.figure()

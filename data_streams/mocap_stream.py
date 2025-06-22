@@ -16,25 +16,9 @@ class MoCapStream:
     """
 
     def __init__(self, client_ip, server_ip, rigid_body_id):
-        """
-        Initializes the MoCapStream class.
-
-        Args:
-            client_ip (str): The IP address of the NatNet client. 
-            server_ip (str): The IP address of the Server (The PC running Motive)
-            rigid_body_id (int): The ID of the rigid body to track.
-        """
-        # Initialize the NatNet client
-        self.client = NatNetClient()
-        self.client.set_client_address(client_ip)
-        self.client.set_server_address(server_ip)
-        self.client.set_use_multicast(False)
-        
-        # Set up listeners for rigid_bodies and frames (needed for time sync) --> No threading needed because the NatNet client handles this internally
-        self.client.rigid_body_listener = self.rigid_body_listener
-        self.client.new_frame_listener = self.new_frame_listener
-
         # Member variables to control the streaming
+        self.client_ip = client_ip
+        self.server_ip = server_ip
         self.rigid_body_id = rigid_body_id
 
         # Member variables to store the latest data
@@ -43,36 +27,32 @@ class MoCapStream:
         self.mean_error = None
         self.tracking_valid = None
         self.timing_offset = None
-
-        # Check if the client is connected
+        
+    def start(self):
+        self.client = NatNetClient()
+        self.client.set_client_address(self.client_ip)
+        self.client.set_server_address(self.server_ip)
+        self.client.set_use_multicast(False)
+        self.client.set_print_level(0)  # print_level = 0 off, print_level = 1 on, print_level = >1 on / print every nth mocap frame:
+                                        # Addionally, comment out line 1663 in NatNetClient.py
         if not self.client.run("d"):
             raise RuntimeError("Failed to start NatNet client.")
         
-        # Supress printing of the NatNet client
-        self.client.set_print_level(0)  # print_level = 0 off, print_level = 1 on, print_level = >1 on / print every nth mocap frame:
-                                        # Addionally, comment out line 1663 in NatNetClient.py
+        # Set up listeners for rigid_bodies and frames (needed for time sync) --> No threading needed because the NatNet client handles this internally
+        self.client.rigid_body_listener = self.rigid_body_listener
+        self.client.new_frame_listener = self.new_frame_listener
+
+    def stop(self):
+        self.client.shutdown()
+
+    def start_timing(self):
+        self.timing_offset = self.timestamp
 
     def new_frame_listener(self, frame_data):
-        """
-        Listener for new frame data to capture the latest timestamp.
-
-        Args:
-            frame_data (dict): The data of the new frame, which includes a timestamp.
-        """
         timestamp = frame_data.get('timestamp')
         self.timestamp = timedelta(seconds=timestamp)
 
     def rigid_body_listener(self, rigid_body_id, position, rotation, marker_error, tracking_valid):
-        """
-        Listener to handle the rigid body pose data.
-
-        Args:
-            id (int): The ID of the rigid body.
-            position (tuple): The position of the rigid body (x, y, z).
-            rotation (tuple): The rotation of the rigid body (qx, qy, qz, qw).
-            marker_error (float): The mean marker error for the rigid body.
-            tracking_valid (bool): Whether the tracking is valid for the rigid body.
-        """
         if rigid_body_id == self.rigid_body_id:
             self.mean_error = marker_error
             self.tracking_valid = tracking_valid
@@ -82,19 +62,7 @@ class MoCapStream:
                 'rotation': np.array(rotation),
             }
 
-    def start_timing(self):
-        """
-        Sets the current timestamp as the zero reference for relative timing.
-        """
-        self.timing_offset = self.timestamp
-
     def get_current_data(self):
-        """
-        Retrieves the pose of the rigid body defined by the rigid_body_id.
-
-        Returns:
-            dict: A dictionary containing the data of the rigid body pose.
-        """
         if self.timing_offset is not None:
             timestamp = self.timestamp - self.timing_offset
         else:
@@ -104,11 +72,6 @@ class MoCapStream:
                 'rigid_body_pose': self.rigid_body_pose,
                 'mean_error': self.mean_error,
                 'tracking_valid': self.tracking_valid}
-    
-    def stop(self):
-        """
-        Stops the NatNet client and releases resources.
-        """
-        self.client.shutdown()
+
 
 

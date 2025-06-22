@@ -18,29 +18,30 @@ class CamStream:
     """
 
     def __init__(self, frame_rate=30, exposure_time=10000, resize=(500, 500)):
-        """
-        Initializes the CamStream class and starts the camera stream in a separate thread.
-
-        Args:
-            frame_rate (int): Frame rate for the camera stream.
-            exposure_time (double): Exposure time in microseconds.
-            resize (tuple): Resize dimensions for the output image.
-        """
-        # Member variables to control the camera stream
-        self.running = True
+        # Member variables to control the streaming
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
         self.resize = resize
+        self.running = False
 
         # Member variables to store the latest data
         self.timestamp = None
         self.frame = None
         self.timing_offset = None
 
+    def start(self):
         # Initialize camera streaming in a separate thread
+        self.running = True
         self.thread = threading.Thread(target=self.cam_loop)
         self.thread.daemon = True
         self.thread.start()
+
+    def stop(self):
+        self.running = False
+        self.thread.join()
+
+    def start_timing(self):
+        self.timing_offset = self.timestamp
 
     def cam_loop(self):
         """
@@ -121,30 +122,11 @@ class CamStream:
             ids_peak.Library.Close()
             print("Camera stream stopped.")
 
-    def start_timing(self):
-        """
-        Sets the current timestamp as the zero reference for relative timing.
-        """
-        self.timing_offset = self.timestamp
-
     def get_current_data(self):
-        """
-        Returns the latest image frame captured by the camera.
-
-        Returns:
-            dict: A dictionary containing the timestamp and the latest image frame.
-        """
         if self.timing_offset is not None:
             timestamp = self.timestamp - self.timing_offset
         else:
             timestamp = self.timestamp
 
         return {'timestamp': timestamp, 'frame': self.frame}
-
-    def stop(self):
-        """
-        Stops the camera stream and releases resources.
-        """
-        self.running = False
-        self.thread.join()
 
