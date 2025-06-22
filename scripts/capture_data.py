@@ -5,19 +5,19 @@ Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-from data_streams.camera_stream import CameraStream
+from data_streams.cam_stream import CamStream
 from data_streams.mocap_stream import MoCapStream
 import cv2
 import time
 
 # Initialize streams
 mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
-camera_stream = CameraStream(frame_rate=30, exposure_time=10000, resize=(500, 500))
+cam_stream = CamStream(frame_rate=30, exposure_time=10000, resize=(500, 500))
 time.sleep(1)  # Allow some time for the streams to initialize
 
 # Start time synchronization
 mocap_stream.start_timing()
-camera_stream.start_timing()
+cam_stream.start_timing()
 
 cv2.namedWindow("Camera")
 
@@ -31,7 +31,7 @@ try:
             break
 
         if key == ord('c'):
-            cam_dict = camera_stream.get_current_data()
+            cam_dict = cam_stream.get_current_data()
             timestamp_cam = cam_dict['timestamp']
             frame = cam_dict['frame']
 
@@ -53,5 +53,5 @@ try:
 
 finally:
     mocap_stream.stop()
-    camera_stream.stop()
+    cam_stream.stop()
     cv2.destroyAllWindows()

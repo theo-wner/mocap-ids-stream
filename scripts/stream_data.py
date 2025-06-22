@@ -5,7 +5,7 @@ Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-from data_streams.camera_stream import CameraStream
+from data_streams.cam_stream import CamStream
 from data_streams.mocap_stream import MoCapStream
 import cv2
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as R
 
 # Initialize streams
 mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
-camera_stream = CameraStream(frame_rate=30, exposure_time=20000, resize=(500, 500))
+cam_stream = CamStream(frame_rate=30, exposure_time=20000, resize=(500, 500))
 
 # Set up 3D plot
 plt.ion()
@@ -33,7 +33,7 @@ quivers = {'x': None, 'y': None, 'z': None}
 # Capture Loop
 try:
     while True:
-        cam_dict = camera_stream.get_current_data()
+        cam_dict = cam_stream.get_current_data()
         frame = cam_dict['frame']
 
         mocap_dict = mocap_stream.get_current_data()
@@ -70,7 +70,7 @@ try:
 
 finally:
     mocap_stream.stop()
-    camera_stream.stop()
+    cam_stream.stop()
     cv2.destroyAllWindows()
     plt.ioff()
     plt.close()

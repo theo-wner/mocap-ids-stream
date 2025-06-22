@@ -1,12 +1,12 @@
 """
-Module to quickly check the framerate of the CameraStream and MoCapStream classes.
+Module to quickly check the framerate of the CamStream and MoCapStream classes.
 Note: This is quick and dirty code for testing purposes only.
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-from data_streams.camera_stream import CameraStream
+from data_streams.cam_stream import CamStream
 from data_streams.mocap_stream import MoCapStream
 import time
 
@@ -62,12 +62,12 @@ def check_mocap_framerate(mocap_stream, duration=5):
     print("-------------------------------------------------------------------")
 
 
-def check_camera_framerate(camera_stream, duration=5):
+def check_cam_framerate(cam_stream, duration=5):
     """
-    Measures the framerate of the CameraStream by counting the number of unique frames and timestamps.
+    Measures the framerate of the CamStream by counting the number of unique frames and timestamps.
 
     Args:
-        camera_stream (CameraStream): The CameraStream instance to check.
+        cam_stream (CamStream): The CamStream instance to check.
         duration (int): Duration in seconds for which to measure the framerate.
 
     Returns:
@@ -75,7 +75,7 @@ def check_camera_framerate(camera_stream, duration=5):
     """
 
     print("-------------------------------------------------------------------")
-    print(f"Measuring CameraStream framerate for {duration} seconds...")
+    print(f"Measuring CamStream framerate for {duration} seconds...")
     
     start_time = time.time()
     different_timestamps = 0
@@ -87,7 +87,7 @@ def check_camera_framerate(camera_stream, duration=5):
     last_frame = None
 
     while time.time() - start_time < duration:
-        cam_dict = camera_stream.get_current_data()
+        cam_dict = cam_stream.get_current_data()
         timestamp = cam_dict['timestamp']
         frame = cam_dict['frame']
 
@@ -114,12 +114,12 @@ def check_camera_framerate(camera_stream, duration=5):
 
 if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
-    camera_stream = CameraStream(frame_rate=30, exposure_time=100, resize=(500, 500))
+    cam_stream = CamStream(frame_rate=30, exposure_time=100, resize=(500, 500))
     time.sleep(1)
 
     try:
-        check_camera_framerate(camera_stream, duration=1)
+        check_cam_framerate(cam_stream, duration=1)
         check_mocap_framerate(mocap_stream, duration=1)
     finally:
         mocap_stream.stop()
-        camera_stream.stop()
+        cam_stream.stop()

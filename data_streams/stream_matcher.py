@@ -1,5 +1,5 @@
 """
-Module for matching camera frames with MoCap poses based on timestamps.
+Module for matching camera frames with MoCap poses based on timestamps and quality filters.
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
@@ -11,7 +11,7 @@ import threading
 
 class StreamMatcher:
     """
-    A class to match camera frames with MoCap poses based on timestamps.
+    A class to match camera frames with MoCap poses based on timestamps and quality filters.
     """
 
     def __init__(self, camera_stream, mocap_stream, maxlen=300):
@@ -21,7 +21,7 @@ class StreamMatcher:
         Args:
             camera_stream (CameraStream): An instance of the CameraStream class.
             mocap_stream (MoCapStream): An instance of the MoCapStream class.
-            maxlen (int): Maximum length of the buffers for camera and mocap data.
+            maxlen (int): Maximum length of the buffer for mocap data.
         """
         self.camera_stream = camera_stream
         self.mocap_stream = mocap_stream

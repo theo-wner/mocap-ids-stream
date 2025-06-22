@@ -1,6 +1,6 @@
 """
 Camera streaming module for an IDS camera.
-Contains wrapper class CameraStream, that wraps the IDS Peak API
+Contains wrapper class CamStream, that wraps the IDS Peak API
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
@@ -12,14 +12,14 @@ from ids_peak import ids_peak
 from ids_peak import ids_peak_ipl_extension
 from datetime import timedelta
 
-class CameraStream:
+class CamStream:
     """
     A class to stream images from an IDS camera in the background.
     """
 
     def __init__(self, frame_rate=30, exposure_time=10000, resize=(500, 500)):
         """
-        Initializes the CameraStream class and starts the camera stream in a separate thread.
+        Initializes the CamStream class and starts the camera stream in a separate thread.
 
         Args:
             frame_rate (int): Frame rate for the camera stream.
@@ -38,11 +38,11 @@ class CameraStream:
         self.timing_offset = None
 
         # Initialize camera streaming in a separate thread
-        self.thread = threading.Thread(target=self.camera_loop)
+        self.thread = threading.Thread(target=self.cam_loop)
         self.thread.daemon = True
         self.thread.start()
 
-    def camera_loop(self):
+    def cam_loop(self):
         """
         Internal method to handle camera initialization and image streaming.
         Inspired by the example from the IDS peak library at https://pypi.org/project/ids-peak/

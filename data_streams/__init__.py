@@ -1,3 +1,3 @@
-from .camera_stream import CameraStream
+from .cam_stream import CamStream
 from .mocap_stream import MoCapStream
 from .stream_matcher import StreamMatcher

@@ -1,19 +1,17 @@
 import time
-import threading
-from collections import deque
 import cv2
-from data_streams.camera_stream import CameraStream
+from data_streams.cam_stream import CamStream
 from data_streams.mocap_stream import MoCapStream
 from data_streams.stream_matcher import StreamMatcher
 
 if __name__ == "__main__":
-    camera_stream = CameraStream(frame_rate=30, exposure_time=200, resize=(500, 500))
+    cam_stream = CamStream(frame_rate=30, exposure_time=200, resize=(500, 500))
     mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
     time.sleep(1)  # Allow streams to initialize
-    camera_stream.start_timing()
+    cam_stream.start_timing()
     mocap_stream.start_timing()
 
-    matcher = StreamMatcher(camera_stream, mocap_stream, maxlen=3000)
+    matcher = StreamMatcher(cam_stream, mocap_stream, maxlen=3000)
     matcher.start()
     time.sleep(1)  # Let buffers fill
 
@@ -21,7 +19,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            cam_data = camera_stream.get_current_data()
+            cam_data = cam_stream.get_current_data()
             frame = cam_data.get('frame')
             if frame is not None:
                 cv2.imshow("Camera", frame)
@@ -38,6 +36,6 @@ if __name__ == "__main__":
                 break
     finally:
         matcher.stop()
-        camera_stream.stop()
+        cam_stream.stop()
         mocap_stream.stop()
         cv2.destroyAllWindows()
