@@ -74,12 +74,9 @@ class MoCapStream:
 
     def get_current_data(self):
         return self.result_dict_buffer[-1]
-
-    def get_best_match(self, query_cam_data):
-        half_buffer_size = self.buffer_size // 2
-        cam_ts = query_cam_data['timestamp'].total_seconds()
-
-        # Wait for future mocap poses
+    
+    def wait_for_n_poses(self, n):
+        # Wait until the buffer has accumulated at least n new mocap poses
         future_poses_cnt = 0
         last_mocap_ts = self.result_dict_buffer[-1]['timestamp'].total_seconds()
         while True:
@@ -87,12 +84,18 @@ class MoCapStream:
             if current_mocap_ts > last_mocap_ts:
                 future_poses_cnt += 1
                 last_mocap_ts = current_mocap_ts
-            if future_poses_cnt >= half_buffer_size:
+            if future_poses_cnt >= n:
                 break
             time.sleep(0.001)
 
+    def get_best_match(self, query_cam_data):
+        # Find the best matching mocap data based on the timestamp of the camera data passed in as query_cam_data.
+        query_cam_data = query_cam_data.copy() # Ensure we don't work with modified data
+        self.wait_for_n_poses(n=self.buffer_size // 2) # Ensure the buffer has enough poses to match
+        interest_buffer = self.result_dict_buffer.copy() # Get the current buffer of mocap data
+
         # Find the best matching mocap data based on timestamp
-        interest_buffer = self.result_dict_buffer.copy()
+        cam_ts = query_cam_data['timestamp'].total_seconds()
         best_mocap_data = None
         best_dt = float('inf')
         for mocap_data in interest_buffer:
@@ -102,4 +105,4 @@ class MoCapStream:
                 best_dt = dt
                 best_mocap_data = mocap_data
 
-        return best_mocap_data, best_dt
+        return best_mocap_data, best_dt, interest_buffer.index(best_mocap_data)
