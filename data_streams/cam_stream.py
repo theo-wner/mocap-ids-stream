@@ -25,15 +25,13 @@ class CamStream:
         self.running = False
 
         # Member variables to store the latest data
-        self.timestamp = None
-        self.frame = None
         self.timing_offset = None
+        self.result_dict = {"timestamp": None, "frame": None}
 
     def start(self):
         # Initialize camera streaming in a separate thread
         self.running = True
-        self.thread = threading.Thread(target=self.cam_loop)
-        self.thread.daemon = True
+        self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -41,9 +39,9 @@ class CamStream:
         self.thread.join()
 
     def start_timing(self):
-        self.timing_offset = self.timestamp
+        self.timing_offset = self.result_dict["timestamp"]
 
-    def cam_loop(self):
+    def update_loop(self):
         """
         Internal method to handle camera initialization and image streaming.
         Inspired by the example from the IDS peak library at https://pypi.org/project/ids-peak/
@@ -86,21 +84,25 @@ class CamStream:
 
             while self.running:
                 try:
+                    # Process image data
                     buffer = data_stream.WaitForFinishedBuffer(1000)
-
                     remote_nodemap.UpdateChunkNodes(buffer)
-
                     frame = ids_peak_ipl_extension.BufferToImage(buffer)
                     frame = frame.get_numpy_2D()
                     frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR) # Convert Bayer pattern to BGR format
                     if self.resize:
-                        self.frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
+                        self.result_dict["frame"] = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
                     else:
-                        self.frame = frame
+                        self.result_dict["frame"] = frame
 
+                    # Process timestamp
                     timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
-                    self.timestamp = timedelta(seconds=timestamp / 1e9)  # Convert nanoseconds to seconds
+                    timestamp = timedelta(seconds=timestamp / 1e9)  # Convert nanoseconds to seconds
+                    if self.timing_offset is not None:
+                        timestamp = timestamp - self.timing_offset
+                    self.result_dict["timestamp"] = timestamp
 
+                    # Queue the buffer for reuse
                     data_stream.QueueBuffer(buffer)
                 except Exception as e:
                     print(f"Streaming exception: {e}")
@@ -123,10 +125,5 @@ class CamStream:
             print("Camera stream stopped.")
 
     def get_current_data(self):
-        if self.timing_offset is not None:
-            timestamp = self.timestamp - self.timing_offset
-        else:
-            timestamp = self.timestamp
-
-        return {'timestamp': timestamp, 'frame': self.frame}
+        return self.result_dict
 

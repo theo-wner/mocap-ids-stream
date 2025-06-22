@@ -11,7 +11,7 @@ import cv2
 import time
 
 # Initialize streams
-mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1)
+mocap_stream = MoCapStream(client_ip="172.22.147.172", server_ip="172.22.147.182", rigid_body_id=1, buffer_size=300)
 cam_stream = CamStream(frame_rate=30, exposure_time=10000, resize=(500, 500))
 
 # Start the streams
