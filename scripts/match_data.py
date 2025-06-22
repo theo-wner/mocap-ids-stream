@@ -10,7 +10,7 @@ if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.172", 
                                server_ip="172.22.147.182", 
                                rigid_body_id=1, 
-                               buffer_size=100)
+                               buffer_size=20)
 
     cam_stream.start()
     mocap_stream.start()
@@ -30,10 +30,11 @@ if __name__ == "__main__":
             key = cv2.waitKey(1) & 0xFF
             if key == ord('c'):
                 print("Picture taken! Waiting for enough mocap poses after acquisition...")
-                mocap, dt, idx = mocap_stream.get_best_match(query_cam_data=cam_data)
+                mocap, dt, buffer_idx = mocap_stream.get_best_match(query_cam_data=cam_data)
                 if mocap:
-                    print(f"Best match found! Δt={dt:.6f}s, error={mocap['mean_error']}, valid={mocap['tracking_valid']}")
-                    print(f"Best Index: {idx})")
+                    dt = dt * 1000  # Convert to milliseconds
+                    mean_error = mocap['mean_error'] * 1000  # Convert to millimeters
+                    print(f"Best match found! Δt={dt:.2f}ms, error={mean_error:.2f}mm, valid={mocap['tracking_valid']}, buffer_index={buffer_idx}")
                 else:
                     print("No valid match found.")
             elif key == ord('q'):
