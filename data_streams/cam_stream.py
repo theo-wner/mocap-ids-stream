@@ -125,5 +125,6 @@ class CamStream:
             print("Camera stream stopped.")
 
     def get_current_data(self):
-        return self.result_dict
+        return self.result_dict.copy()
+    
 

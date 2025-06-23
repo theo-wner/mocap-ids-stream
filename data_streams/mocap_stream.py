@@ -11,6 +11,10 @@ from .NatNetSDK import NatNetClient
 from datetime import timedelta
 from collections import deque
 import time
+from scipy.spatial.transform import Rotation as R, RotationSpline
+from scipy.interpolate import CubicSpline
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 
 class MoCapStream:
     """
@@ -65,15 +69,15 @@ class MoCapStream:
             self.result_dict_buffer.append({
                 'timestamp': timestamp,
                 'rigid_body_pose': {
-                    'position': np.array(position),
-                    'rotation': np.array(rotation),
+                    'position': list(position),
+                    'rotation': list(rotation),
                     },
                 'mean_error': marker_error,
                 'tracking_valid': tracking_valid
             })
 
     def get_current_data(self):
-        return self.result_dict_buffer[-1]
+        return self.result_dict_buffer[-1].copy()
     
     def wait_for_n_poses(self, n):
         # Wait until the buffer has accumulated at least n new mocap poses
@@ -87,22 +91,94 @@ class MoCapStream:
             if future_poses_cnt >= n:
                 break
             time.sleep(0.001)
-
-    def get_best_match(self, query_cam_data):
-        # Find the best matching mocap data based on the timestamp of the camera data passed in as query_cam_data.
-        query_cam_data = query_cam_data.copy() # Ensure we don't work with modified data
+    
+    def get_interpolated_pose(self, query_cam_data, marker_error_threshold, show_plot=False):
+        """
+        Interpolates the poses in the buffer to find the pose at the timestamp of the camera data.
+        
+        Args:
+            query_cam_data (dict): The camera data containing the timestamp to query.
+            marker_error_threshold (float): The threshold for the marker error to consider a pose valid.
+        
+        Returns:
+            numpy.ndarray: The interpolated position.
+            numpy.ndarray: The interpolated rotation as a quaternion.
+        """
         self.wait_for_n_poses(n=self.buffer_size // 2) # Ensure the buffer has enough poses to match
-        interest_buffer = self.result_dict_buffer.copy() # Get the current buffer of mocap data
+        current_buffer = self.result_dict_buffer.copy() # Get the current buffer of mocap data
+        
+        # Filter the buffer for valid mocap data based on tracking validity and marker error threshold
+        interest_buffer = []
+        for data in current_buffer:
+            if data['tracking_valid'] and data['mean_error'] < marker_error_threshold:
+                interest_buffer.append(data)
 
-        # Find the best matching mocap data based on timestamp
-        cam_ts = query_cam_data['timestamp'].total_seconds()
-        best_mocap_data = None
-        best_dt = float('inf')
-        for mocap_data in interest_buffer:
-            mocap_ts = mocap_data['timestamp'].total_seconds()
-            dt = abs(cam_ts - mocap_ts)
-            if dt < best_dt:
-                best_dt = dt
-                best_mocap_data = mocap_data
+        if len(interest_buffer) < 5:
+            print("Not enough valid mocap data in buffer to match with camera data.")
+            return None, None
+        
+        # Extract times, positions, and rotations from the buffer
+        times = [data['timestamp'].total_seconds() for data in interest_buffer]
+        positions = [data['rigid_body_pose']['position'] for data in interest_buffer]
+        rotations = [data['rigid_body_pose']['rotation'] for data in interest_buffer]
 
-        return best_mocap_data, best_dt, interest_buffer.index(best_mocap_data)
+        # Create Translation-Splines (one for each xyz-dim) from valid buffer
+        positions_plot = positions.copy()
+        positions = np.array(positions).T
+        pos_splines = [CubicSpline(times, positions[dim]) for dim in range(3)]
+
+        # Create Rotation-Spline from valid buffer
+        rotations_plot = rotations.copy()
+        rotations = R.from_quat(rotations)
+        rot_spline = RotationSpline(times, rotations)
+
+        # Query
+        query_time = query_cam_data['timestamp'].total_seconds()
+        interpolated_position = np.array([s(query_time) for s in pos_splines])
+        interpolated_rotation = rot_spline(query_time).as_quat()
+
+        # Plotting for debugging (optional)
+        if show_plot:
+            times_plot = np.linspace(times[0], times[-1], 100)
+            rot_spline_plot = rot_spline(times_plot).as_quat()
+
+            fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+
+            # Plot quaternion components
+            axs[0].plot(times_plot, rot_spline_plot)
+            axs[0].plot(times, rotations_plot, 'x', color='black')
+            query_line0 = axs[0].axvline(query_time, color='red', linestyle='--')
+            axs[0].set_title("Quaternions over time")
+            axs[0].set_xlabel("Time [s]")
+            axs[0].set_ylabel("Quaternion components")
+            # Custom legend handles
+            handles0 = [
+                mlines.Line2D([], [], color=axs[0].lines[i].get_color(), label=lbl)
+                for i, lbl in enumerate(['w', 'x', 'y', 'z'])
+            ]
+            handles0.append(
+                mlines.Line2D([], [], color='red', linestyle='--', label='query_time')
+            )
+            axs[0].legend(handles=handles0)
+
+            # Plot position splines
+            pos_spline_plot = np.array([[s(t) for s in pos_splines] for t in times_plot])
+            axs[1].plot(times_plot, pos_spline_plot)
+            axs[1].plot(times, positions_plot, 'x', color='black')
+            query_line1 = axs[1].axvline(query_time, color='red', linestyle='--')
+            axs[1].set_title("Position XYZ over time")
+            axs[1].set_xlabel("Time [s]")
+            axs[1].set_ylabel("Position [m]")
+            handles1 = [
+                mlines.Line2D([], [], color=axs[1].lines[i].get_color(), label=lbl)
+                for i, lbl in enumerate(['x', 'y', 'z'])
+            ]
+            handles1.append(
+                mlines.Line2D([], [], color='red', linestyle='--', label='query_time')
+            )
+            axs[1].legend(handles=handles1)
+
+            plt.tight_layout()
+            plt.show()
+
+        return interpolated_position, interpolated_rotation
