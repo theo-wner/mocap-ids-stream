@@ -6,7 +6,7 @@ from data_streams.mocap_stream import MoCapStream
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
     cam_stream = CamStream(frame_rate=30, 
-                           exposure_time=1000, 
+                           exposure_time=10000, 
                            resize=(500, 500))
     mocap_stream = MoCapStream(client_ip="172.22.147.172", 
                                server_ip="172.22.147.182", 
