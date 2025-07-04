@@ -2,6 +2,12 @@
 
 ## Manual for working with the mocap-gs repo
 
+### Download IDS Peak SDK
+- go to https://en.ids-imaging.com/download-peak.html
+- choose your operating system, following instructions are for Linux
+- choose IDS peak xxx for Linux 64-bit – Debian package (without uEye Transport Layer)
+- download and install the package via ```sudo apt install ./ids-peak-_xxx_amd64.deb```
+
 ### Connect IDS U3-31J0CP Rev.2.2 to workstation
 - plug in usb-cable 
 
