@@ -12,14 +12,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# Initialize streams
-mocap_stream = MoCapStream(client_ip="172.22.147.172", 
-                           server_ip="172.22.147.182", 
-                           rigid_body_id=1,
-                           buffer_size=300)
+# Initialize camera and motion capture streams
 cam_stream = CamStream(frame_rate=30, 
-                       exposure_time=200, 
-                       resize=(500, 500))
+                        exposure_time=20000, 
+                        resize=None)
+mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
+                            server_ip="172.22.147.182", 
+                            rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
+                            buffer_size=20)
 
 # Start the streams
 mocap_stream.start()

@@ -114,8 +114,7 @@ class MoCapStream:
                 interest_buffer.append(data)
 
         if len(interest_buffer) < 5:
-            print("Not enough valid mocap data in buffer to match with camera data.")
-            return None, None
+            return None, None, None, None
         
         # Extract times, positions, and rotations from the buffer
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
@@ -132,17 +131,29 @@ class MoCapStream:
         rotations = R.from_quat(rotations)
         rot_spline = RotationSpline(times, rotations)
 
-        # Query
+        # Query pose at the camera timestamp
         query_time = query_cam_data['timestamp'].total_seconds()
         interpolated_position = np.array([s(query_time) for s in pos_splines])
         interpolated_rotation = rot_spline(query_time).as_quat()
+
+        # Query velocities at the camera timestamp
+        interpolated_linear_velocity_vec = np.array([s(query_time, 1) for s in pos_splines])
+        interpolated_lateral_velocity = np.linalg.norm(interpolated_linear_velocity_vec)
+
+        interpolated_angular_velocity_vec = rot_spline(query_time, 1)
+        interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
 
         # Plotting for debugging (optional)
         if show_plot:
             times_plot = np.linspace(times[0], times[-1], 100)
             rot_spline_plot = rot_spline(times_plot).as_quat()
 
-            fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+            # Compute velocities for the whole plot range
+            linear_velocities = np.array([[s(t, 1) for s in pos_splines] for t in times_plot])
+            lateral_velocities = np.linalg.norm(linear_velocities, axis=1)
+            angular_velocities = np.linalg.norm(rot_spline(times_plot, 1), axis=1)
+
+            fig, axs = plt.subplots(3, 1, figsize=(10, 12))
 
             # Plot quaternion components
             axs[0].plot(times_plot, rot_spline_plot)
@@ -151,7 +162,6 @@ class MoCapStream:
             axs[0].set_title("Quaternions over time")
             axs[0].set_xlabel("Time [s]")
             axs[0].set_ylabel("Quaternion components")
-            # Custom legend handles
             handles0 = [
                 mlines.Line2D([], [], color=axs[0].lines[i].get_color(), label=lbl)
                 for i, lbl in enumerate(['w', 'x', 'y', 'z'])
@@ -178,7 +188,18 @@ class MoCapStream:
             )
             axs[1].legend(handles=handles1)
 
+            # Plot velocities
+            axs[2].plot(times_plot, lateral_velocities, label='Lateral velocity (m/s)', color='blue')
+            axs[2].plot(times_plot, angular_velocities, label='Angular velocity (rad/s)', color='orange')
+            axs[2].axvline(query_time, color='red', linestyle='--', label='query_time')
+            axs[2].scatter([query_time], [interpolated_lateral_velocity], color='blue', marker='x')
+            axs[2].scatter([query_time], [interpolated_angular_velocity], color='orange', marker='x')
+            axs[2].set_title("Velocities over time")
+            axs[2].set_xlabel("Time [s]")
+            axs[2].set_ylabel("Velocity")
+            axs[2].legend()
+
             plt.tight_layout()
             plt.show()
 
-        return interpolated_position, interpolated_rotation
+        return interpolated_position, interpolated_rotation, interpolated_lateral_velocity, interpolated_angular_velocity
