@@ -15,7 +15,7 @@ from data_streams.mocap_stream import MoCapStream
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
     cam_stream = CamStream(frame_rate=30, 
-                           exposure_time=20000, 
+                           exposure_time=30000, 
                            resize=None)
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
             print("Picture taken! Waiting for enough mocap poses after acquisition...")
-            pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(cam_data, marker_error_threshold=0.001, show_plot=False)
+            pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(cam_data, marker_error_threshold=0.001, show_plot=True)
             if pos is not None:
                 print(f"Linear velocity: {v_trans:.2f} m/s, Angular velocity: {v_rot:.2f} rad/s")
         elif key == ord('q'):

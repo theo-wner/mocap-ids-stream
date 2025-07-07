@@ -27,7 +27,7 @@ if __name__ == "__main__":
     ensure_dirs()
     # Initialize camera and motion capture streams
     cam_stream = CamStream(frame_rate=30, 
-                           exposure_time=20000, 
+                           exposure_time=30000, 
                            resize=None)
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
@@ -60,16 +60,15 @@ if __name__ == "__main__":
                 cam_data, marker_error_threshold=0.001, show_plot=False
             )
 
-            if pos is not None and v_trans <= 0.1 and v_rot <= 0.1:
+            if pos is not None and v_trans <= 0.05 and v_rot <= 0.05:
                 should_save = False
-                if last_saved_pos is None:
-                    should_save = False  # Don't save the first position
+                if last_saved_pos is None: # Don't save the first position
                     last_saved_pos = pos 
                 else:
                     dist = ((pos[0] - last_saved_pos[0]) ** 2 +
                             (pos[1] - last_saved_pos[1]) ** 2 +
                             (pos[2] - last_saved_pos[2]) ** 2) ** 0.5
-                    if dist >= 0.5:
+                    if dist >= 0.3:
                         should_save = True
 
                 if should_save:
@@ -81,6 +80,7 @@ if __name__ == "__main__":
                     )
                     poses_file.flush()
                     print(f"Captured {image_name}")
+                    os.system('aplay /usr/share/sounds/sound-icons/super-mario-coin-sound.wav > /dev/null 2>&1 &')
                     img_idx += 1
                     last_saved_pos = pos
 
