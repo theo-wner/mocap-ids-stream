@@ -3,6 +3,3 @@ opencv-python
 matplotlib
 scipy
 ids_peak
-#torch --index-url https://download.pytorch.org/whl/cpu # Adjust based on your system
-#torchvision --index-url https://download.pytorch.org/whl/cpu
-#torchaudio --index-url https://download.pytorch.org/whl/cpu
