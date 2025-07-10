@@ -31,9 +31,9 @@ class MoCapStream:
         # Member variables to buffer the data
         self.timing_offset = None
         self.timestamp = None # Extra member needed because timestamp is retrieved via another listener
-        self.result_dict_buffer = deque(maxlen=self.buffer_size)
+        self.pose_buffer = deque(maxlen=self.buffer_size)
         
-    def start(self):
+        # Initialize the NatNet client
         self.client = NatNetClient()
         self.client.set_client_address(self.client_ip)
         self.client.set_server_address(self.server_ip)
@@ -47,11 +47,10 @@ class MoCapStream:
         self.client.rigid_body_listener = self.rigid_body_listener
         self.client.new_frame_listener = self.new_frame_listener
 
-    def stop(self):
-        self.client.shutdown()
+        time.sleep(1) # Allow some time for the client to connect and start receiving data
 
     def start_timing(self):
-        self.timing_offset = self.result_dict_buffer[-1]['timestamp']
+        self.timing_offset = self.pose_buffer[-1]['timestamp']
 
     def new_frame_listener(self, frame_data):
         timestamp = frame_data.get('timestamp')
@@ -66,25 +65,27 @@ class MoCapStream:
             else:
                 timestamp = self.timestamp
 
-            self.result_dict_buffer.append({
-                'timestamp': timestamp,
+            self.pose_buffer.append({
                 'rigid_body_pose': {
                     'position': list(position),
                     'rotation': list(rotation),
                     },
+                'timestamp': timestamp,
                 'mean_error': marker_error,
                 'tracking_valid': tracking_valid
             })
 
-    def get_current_data(self):
-        return self.result_dict_buffer[-1].copy()
+    def getnext(self):
+        return self.pose_buffer[-1].copy()
     
     def wait_for_n_poses(self, n):
-        # Wait until the buffer has accumulated at least n new mocap poses
+        """
+        Waits until the buffer has at least n future poses.
+        """
         future_poses_cnt = 0
-        last_mocap_ts = self.result_dict_buffer[-1]['timestamp'].total_seconds()
+        last_mocap_ts = self.pose_buffer[-1]['timestamp'].total_seconds()
         while True:
-            current_mocap_ts = self.result_dict_buffer[-1]['timestamp'].total_seconds()
+            current_mocap_ts = self.pose_buffer[-1]['timestamp'].total_seconds()
             if current_mocap_ts > last_mocap_ts:
                 future_poses_cnt += 1
                 last_mocap_ts = current_mocap_ts
@@ -92,12 +93,12 @@ class MoCapStream:
                 break
             time.sleep(0.001)
     
-    def get_interpolated_pose(self, query_cam_data, marker_error_threshold, show_plot=False):
+    def get_interpolated_pose(self, query_time, marker_error_threshold, show_plot=False):
         """
         Interpolates the poses in the buffer to find the pose at the timestamp of the camera data.
         
         Args:
-            query_cam_data (dict): The camera data containing the timestamp to query.
+            query_time (timedelta): The timestamp at which to query the pose.
             marker_error_threshold (float): The threshold for the marker error to consider a pose valid.
         
         Returns:
@@ -105,7 +106,7 @@ class MoCapStream:
             numpy.ndarray: The interpolated rotation as a quaternion.
         """
         self.wait_for_n_poses(n=self.buffer_size // 2) # Ensure the buffer has enough poses to match
-        current_buffer = self.result_dict_buffer.copy() # Get the current buffer of mocap data
+        current_buffer = self.pose_buffer.copy() # Get the current buffer of mocap data
         
         # Filter the buffer for valid mocap data based on tracking validity and marker error threshold
         interest_buffer = []
@@ -132,7 +133,7 @@ class MoCapStream:
         rot_spline = RotationSpline(times, rotations)
 
         # Query pose at the camera timestamp
-        query_time = query_cam_data['timestamp'].total_seconds()
+        query_time = query_time.total_seconds()
         interpolated_position = np.array([s(query_time) for s in pos_splines])
         interpolated_rotation = rot_spline(query_time).as_quat()
 
@@ -203,3 +204,6 @@ class MoCapStream:
             plt.show()
 
         return interpolated_position, interpolated_rotation, interpolated_lateral_velocity, interpolated_angular_velocity
+    
+    def stop(self):
+        self.client.shutdown()

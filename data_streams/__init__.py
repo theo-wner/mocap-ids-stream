@@ -1,2 +1,2 @@
-from .cam_stream import CamStream
+from .ids_stream import IDSStream
 from .mocap_stream import MoCapStream

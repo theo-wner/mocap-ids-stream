@@ -10,3 +10,4 @@ dependencies:
       - matplotlib
       - scipy
       - ids_peak
+      - torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu # Adjust based on your system

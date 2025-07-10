@@ -1,12 +1,12 @@
 """
-Module to quickly check the framerate of the CamStream and MoCapStream classes.
+Module to quickly check the framerate of the IDSStream and MoCapStream classes.
 Note: This is quick and dirty code for testing purposes only.
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-from data_streams.cam_stream import CamStream
+from data_streams.ids_stream import IDSStream
 from data_streams.mocap_stream import MoCapStream
 import time
 
@@ -114,17 +114,13 @@ def check_cam_framerate(cam_stream, duration=5):
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
-    cam_stream = CamStream(frame_rate=30, 
+    cam_stream = IDSStream(frame_rate=30, 
                            exposure_time=20000, 
                            resize=None)
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=20)
-
-    mocap_stream.start()
-    cam_stream.start()
-    time.sleep(1)
 
     try:
         check_cam_framerate(cam_stream, duration=1)

@@ -1,23 +1,19 @@
-import time
 import cv2
-from data_streams.cam_stream import CamStream
+from data_streams.ids_stream import IDSStream
 from data_streams.mocap_stream import MoCapStream
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
-    cam_stream = CamStream(frame_rate=30, 
+    cam_stream = IDSStream(frame_rate=30, 
                            exposure_time=20000, 
                            resize=None)
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=20)
-    cam_stream.start()
-    mocap_stream.start()
-    time.sleep(1)
+    
     cam_stream.start_timing()
     mocap_stream.start_timing()
-    time.sleep(1)
 
     # Capture Loop
     print("Press 'c' to capture and match, or 'q' to quit.")

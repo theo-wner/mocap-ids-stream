@@ -8,10 +8,9 @@ Author:
 """
 
 import os
-import time
 import shutil
 import cv2
-from data_streams.cam_stream import CamStream
+from data_streams.ids_stream import IDSStream
 from data_streams.mocap_stream import MoCapStream
 
 OUTPUT_DIR = "colmap_dataset"
@@ -26,19 +25,16 @@ def ensure_dirs():
 if __name__ == "__main__":
     ensure_dirs()
     # Initialize camera and motion capture streams
-    cam_stream = CamStream(frame_rate=30, 
-                           exposure_time=30000, 
+    cam_stream = IDSStream(frame_rate=30, 
+                           exposure_time=20000, 
                            resize=None)
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=20)
-    cam_stream.start()
-    mocap_stream.start()
-    time.sleep(1)
+    
     cam_stream.start_timing()
     mocap_stream.start_timing()
-    time.sleep(1)
 
     with open(POSES_PATH, "w") as poses_file:
         poses_file.write("# image_name tx ty tz qx qy qz qw\n")

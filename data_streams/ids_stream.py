@@ -1,6 +1,6 @@
 """
 Camera streaming module for an IDS camera.
-Contains wrapper class CamStream, that wraps the IDS Peak API
+Contains wrapper class IDSStream, that wraps the IDS Peak API
 
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
@@ -8,11 +8,12 @@ Author:
 
 import threading
 import cv2
+import torch
+from datetime import timedelta
 from ids_peak import ids_peak
 from ids_peak import ids_peak_ipl_extension
-from datetime import timedelta
 
-class CamStream:
+class IDSStream:
     """
     A class to stream images from an IDS camera in the background.
     """
@@ -22,24 +23,23 @@ class CamStream:
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
         self.resize = resize
-        self.running = False
 
         # Member variables to store the latest data
         self.timing_offset = None
-        self.result_dict = {"timestamp": None, "frame": None}
+        self.frame = None
+        self.info = {"timestamp": None, "is_test": False}
 
-    def start(self):
         # Initialize camera streaming in a separate thread
         self.running = True
         self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
 
-    def stop(self):
-        self.running = False
-        self.thread.join()
+    def __len__(self):
+        # Arbitrary large number as we don't know the length of a stream
+        return 100_000_000  
 
     def start_timing(self):
-        self.timing_offset = self.result_dict["timestamp"]
+        self.timing_offset = self.info["timestamp"]
 
     def update_loop(self):
         """
@@ -91,16 +91,16 @@ class CamStream:
                     frame = frame.get_numpy_2D()
                     frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR) # Convert Bayer pattern to BGR format
                     if self.resize:
-                        self.result_dict["frame"] = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
-                    else:
-                        self.result_dict["frame"] = frame
+                        frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
+                    self.frame = frame
 
                     # Process timestamp
                     timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
                     timestamp = timedelta(seconds=timestamp / 1e9)  # Convert nanoseconds to seconds
                     if self.timing_offset is not None:
                         timestamp = timestamp - self.timing_offset
-                    self.result_dict["timestamp"] = timestamp
+                    self.info['timestamp'] = timestamp
+                    self.info['is_test'] = False 
 
                     # Queue the buffer for reuse
                     data_stream.QueueBuffer(buffer)
@@ -123,8 +123,21 @@ class CamStream:
         finally:
             ids_peak.Library.Close()
             print("Camera stream stopped.")
-
-    def get_current_data(self):
-        return self.result_dict.copy()
     
+    def getnext(self, return_tensor=True):
+        """
+        Returns the next frame and its metadata.
+        """    
+        frame = self.frame.copy()
+        info = self.info.copy()
+        if return_tensor:
+            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
+        return frame, info
+    
+    def get_image_size(self):
+        frame = self.getnext()[0]
+        return frame.shape[-2], frame.shape[-1]
 
+    def stop(self):
+        self.running = False
+        self.thread.join()
