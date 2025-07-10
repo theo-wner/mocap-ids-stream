@@ -8,8 +8,8 @@ Author:
 """
 
 import cv2
-from data_streams.ids_stream import IDSStream
-from data_streams.mocap_stream import MoCapStream
+from streams.ids_stream import IDSStream
+from streams.mocap_stream import MoCapStream
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams

@@ -10,8 +10,9 @@ Author:
 import os
 import shutil
 import cv2
-from data_streams.ids_stream import IDSStream
-from data_streams.mocap_stream import MoCapStream
+from streams.ids_stream import IDSStream
+from streams.mocap_stream import MoCapStream
+import time
 
 OUTPUT_DIR = "colmap_dataset"
 IMAGES_DIR = os.path.join(OUTPUT_DIR, "images")
@@ -36,6 +37,8 @@ if __name__ == "__main__":
     cam_stream.start_timing()
     mocap_stream.start_timing()
 
+    time.sleep(1)  # Allow some time for streams to initialize
+
     with open(POSES_PATH, "w") as poses_file:
         poses_file.write("# image_name tx ty tz qx qy qz qw\n")
         print("Capturing colmap dataset. Press 'q' to quit.")
@@ -43,8 +46,7 @@ if __name__ == "__main__":
         last_saved_pos = None  # Track last saved position
 
         while True:
-            cam_data = cam_stream.get_current_data()
-            frame = cam_data['frame']
+            frame, info = cam_stream.getnext(return_tensor=False)
             if frame is not None:
                 frame_vis = cv2.resize(frame, (1000, 1000))
                 cv2.imshow("Camera", frame_vis)
@@ -53,7 +55,7 @@ if __name__ == "__main__":
                 break
 
             pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(
-                cam_data, marker_error_threshold=0.001, show_plot=False
+                info['timestamp'], marker_error_threshold=0.001, show_plot=False
             )
 
             if pos is not None and v_trans <= 0.05 and v_rot <= 0.05:

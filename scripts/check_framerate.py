@@ -6,8 +6,8 @@ Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-from data_streams.ids_stream import IDSStream
-from data_streams.mocap_stream import MoCapStream
+from streams.ids_stream import IDSStream
+from streams.mocap_stream import MoCapStream
 import time
 
 def check_mocap_framerate(mocap_stream, duration=5):
