@@ -9,6 +9,7 @@ Author:
 import threading
 import cv2
 import torch
+import time
 from datetime import timedelta
 from ids_peak import ids_peak
 from ids_peak import ids_peak_ipl_extension
@@ -33,6 +34,8 @@ class IDSStream:
         self.running = True
         self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
+
+        time.sleep(1)  # Allow some time for the camera to initialize
 
     def __len__(self):
         # Arbitrary large number as we don't know the length of a stream
