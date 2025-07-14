@@ -37,6 +37,10 @@ class IDSStream:
 
         time.sleep(1)  # Allow some time for the camera to initialize
 
+        # Check if the camera is initialized
+        if self.frame is None:
+            raise RuntimeError("Failed to initialize IDSStream: Camera not found or not initialized.")
+
     def __len__(self):
         # Arbitrary large number as we don't know the length of a stream
         return 100_000_000  

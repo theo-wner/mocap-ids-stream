@@ -120,4 +120,13 @@ This method retrieves the pose at the specified timestamp, interpolating the pos
 pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(query_time=timestamp)
 ```
 
- 
+### Example Scripts
+This repository contains several example scripts that demonstrate how to use the `IDSStream` and `MoCapStream` classes for various tasks:
+- `capture_data.py`: Captures data from both the IDS camera and the OptiTrack motion capture system and visualizes the captured data.
+- `capture_colmap_dataset.py`: Captures a dataset suitable for COLMAP, including images and corresponding poses.
+- `check_time_sync.py`: Checks the time synchronization between the IDS camera and the OptiTrack motion capture system.
+- `check_frame_rate.py`: Verifies the frame rates of both the IDS camera and the OptiTrack motion capture system.
+Example usage:
+```bash
+python -m scripts.capture_data.py
+

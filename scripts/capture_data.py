@@ -10,6 +10,7 @@ Author:
 import cv2
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
+import time
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
@@ -20,7 +21,6 @@ if __name__ == "__main__":
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=20)
-    
     cam_stream.start_timing()
     mocap_stream.start_timing()
 

@@ -40,14 +40,17 @@ class MoCapStream:
         self.client.set_use_multicast(False)
         self.client.set_print_level(0)  # print_level = 0 off, print_level = 1 on, print_level = >1 on / print every nth mocap frame:
                                         # Addionally, comment out line 1663 in NatNetClient.py
-        if not self.client.run("d"):
-            raise RuntimeError("Failed to start NatNet client.")
+        self.client.run("d")
         
         # Set up listeners for rigid_bodies and frames (needed for time sync) --> No threading needed because the NatNet client handles this internally
         self.client.rigid_body_listener = self.rigid_body_listener
         self.client.new_frame_listener = self.new_frame_listener
 
-        time.sleep(1) # Allow some time for the client to connect and start receiving data
+        time.sleep(1)  # Allow some time to initialize
+
+        # Check if the client is connected
+        if not self.client.connected():
+            raise RuntimeError(f"Failed to initialize MoCapStream: Could not connect to server {self.server_ip} at client {self.client_ip}.")
 
     def start_timing(self):
         self.timing_offset = self.pose_buffer[-1]['timestamp']
