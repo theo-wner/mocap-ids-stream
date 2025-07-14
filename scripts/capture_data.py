@@ -13,8 +13,8 @@ from streams.mocap_stream import MoCapStream
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
-    cam_stream = IDSStream(frame_rate=30, 
-                           exposure_time=20000, 
+    cam_stream = IDSStream(frame_rate='max', 
+                           exposure_time='auto', 
                            resize=(1000, 1000))
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 

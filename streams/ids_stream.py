@@ -19,7 +19,7 @@ class IDSStream:
     A class to stream images from an IDS camera in the background.
     """
 
-    def __init__(self, frame_rate=30, exposure_time=10000, resize=(500, 500)):
+    def __init__(self, frame_rate='max', exposure_time='auto', resize=None):
         # Member variables to control the streaming
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
@@ -67,8 +67,22 @@ class IDSStream:
             remote_nodemap = device.RemoteDevice().NodeMaps()[0]
 
             # Set acquisition parameters
-            remote_nodemap.FindNode("AcquisitionFrameRate").SetValue(self.frame_rate)
-            remote_nodemap.FindNode("ExposureTime").SetValue(self.exposure_time)
+            # Frame rate
+            if self.frame_rate == 'max':
+                max_frame_rate = remote_nodemap.FindNode("AcquisitionFrameRate").Maximum()
+                remote_nodemap.FindNode("AcquisitionFrameRate").SetValue(max_frame_rate)
+                print(f"Using maximum frame rate: {max_frame_rate} FPS")
+            elif isinstance(self.frame_rate, int):
+                remote_nodemap.FindNode("AcquisitionFrameRate").SetValue(self.frame_rate)
+
+            # Exposure time
+            if self.exposure_time == 'auto':
+                remote_nodemap.FindNode("ExposureAuto").SetCurrentEntry("Continuous")
+            elif isinstance(self.exposure_time, int):
+                remote_nodemap.FindNode("ExposureTime").SetValue(self.exposure_time)
+
+            # Gain
+            remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Continuous")
 
             # Enable Metadata (Chunks) for timestamp retrieval
             remote_nodemap.FindNode("ChunkModeActive").SetValue(True)
