@@ -10,7 +10,6 @@ Author:
 import cv2
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
-import time
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
