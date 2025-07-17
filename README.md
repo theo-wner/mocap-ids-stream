@@ -3,7 +3,7 @@
 This repository provides a framework for capturing and processing camera and motion capture data using the IDS U3-31J0CP camera and the OptiTrack Motive software. 
 It includes the classes `IDSStream` and `MoCapStream` for handling IDS camera and OptiTrack motion capture data streams.
 This is aimed towards the application of connecting a camera to a rigid body, trackable with a motion capture system.
-For determining the relative Pose bewtween the Camera Coordinate System and the Rigid Body Coordinate System, this repository features functionality for performing a Hand-Eye-Calibration (HEC).
+For determining the relative Pose between the Camera Coordinate System and the Rigid Body Coordinate System, this repository features functionality for performing a Hand-Eye-Calibration (HEC).
 Also, it contains scripts for capture visualization, capturing datasets suitable for COLMAP, checking time synchronization, and verifying frame rates.
 
 ## Prerequisites
