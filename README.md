@@ -2,6 +2,8 @@
 
 This repository provides a framework for capturing and processing camera and motion capture data using the IDS U3-31J0CP camera and the OptiTrack Motive software. 
 It includes the classes `IDSStream` and `MoCapStream` for handling IDS camera and OptiTrack motion capture data streams.
+This is aimed towards the application of connecting a camera to a rigid body, trackable with a motion capture system.
+For determining the relative Pose bewtween the Camera Coordinate System and the Rigid Body Coordinate System, this repository features functionality for performing a Hand-Eye-Calibration (HEC).
 Also, it contains scripts for capture visualization, capturing datasets suitable for COLMAP, checking time synchronization, and verifying frame rates.
 
 ## Prerequisites
@@ -33,6 +35,7 @@ In Motive, apply the following settings:
    - Transmission Type: Unicast
    - Multicast Interface: Same as Local Interface (e.g., `172.22.147.182`)
    - VRPN Broadcast Port: Leave as it is (default is `3883`)
+4. Create new Rigid Body for the camera rig under Layout → Create
 
 #### NatNet SDK Python Client
 In order for the NatNet SDK Python Client to work, you need to have the NatNet SDK installed on your system.
