@@ -1,58 +1,6 @@
 import cv2
 import numpy as np
 
-def get_corner_ids(meta, chessboard):
-    """
-    Calculates an ID for each corner based on the used chessboard by
-        1. Padding the detected meta array to align the local origin (value 4) to the global chessboard origin.
-        2. Assigning an ID to the padded detected meta array
-        3. Kicking out the non visible corners
-
-    Args:
-        meta (numpy.ndarray): Metadata returned by the function findChessboardCornersSB(). Contains info about wheather a corner is the top left corner of a square that is 
-            black (1), white (2), black with white dot (3), white with black dot (4) or no meta data attached (0)
-        chessboard (dict): See description in the function findChessboardCorners below
-    """
-    # Find the location of the origin in meta (local origin) --> either black or white dot
-    meta = meta.astype(np.int32)
-    if chessboard['origin_marker_dot_color'] == 'black':
-        origin_num = 4
-    elif chessboard['origin_marker_dot_color'] == 'white':
-        origin_num = 3
-
-    loc = np.argwhere(meta == origin_num)
-    if loc.shape[0] != 1:
-        raise ValueError(f"Expected exactly one origin marker with ID {origin_num} in meta. Please check origin_marker_dot_color in your chessboard definition")
-    
-    origin_down_local, origin_right_local = loc[0]
-
-    # Where the origin (4) should be in the full chessboard
-    origin_down_global = chessboard['origin_marker_pos_down']
-    origin_right_global = chessboard['origin_marker_pos_right']
-
-    # Compute how much padding is needed before and after
-    pad_top = origin_down_global - origin_down_local
-    pad_left = origin_right_global - origin_right_local
-    pad_bottom = chessboard['num_corners_down'] - (pad_top + meta.shape[0])
-    pad_right = chessboard['num_corners_right'] - (pad_left + meta.shape[1])
-
-    # Sanity check
-    if pad_top < 0 or pad_bottom < 0 or pad_left < 0 or pad_right < 0:
-        raise ValueError("Meta data too large or origin mismatch for target chessboard size. Please check your chessboard definition")
-
-    # Pad with -1 to fill the full chessboard
-    padded_meta = np.pad(meta,
-                         ((pad_top, pad_bottom), (pad_left, pad_right)),
-                         mode='constant',
-                         constant_values=-1)
-    
-    # Create ID array of the whole chessboard
-    paddded_ids = np.arange(chessboard['num_corners_down'] * chessboard['num_corners_right']).reshape((chessboard['num_corners_down'] , chessboard['num_corners_right']))
-
-    # Kick out non visible entries
-    ids = paddded_ids[padded_meta != -1]
-    return ids
-
 def findChessboardCorners(image, chessboard, visualize=False):
     """
     Wrapper function for the OpenCV-Function findChessboardCornersSB() found at: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#gadc5bcb05cb21cf1e50963df26986d7c9
@@ -127,10 +75,61 @@ def findChessboardCorners(image, chessboard, visualize=False):
         print("No chessboard corners found.")
         return False, None, None
 
+def get_corner_ids(meta, chessboard):
+    """
+    Calculates an ID for each corner based on the used chessboard by
+        1. Padding the detected meta array to align the local origin (value 4) to the global chessboard origin.
+        2. Assigning an ID to the padded detected meta array
+        3. Kicking out the non visible corners
+
+    Args:
+        meta (numpy.ndarray): Metadata returned by the function findChessboardCornersSB(). Contains info about wheather a corner is the top left corner of a square that is 
+            black (1), white (2), black with white dot (3), white with black dot (4) or no meta data attached (0)
+        chessboard (dict): See description in the function findChessboardCorners below
+    """
+    # Find the location of the origin in meta (local origin) --> either black or white dot
+    meta = meta.astype(np.int32)
+    if chessboard['origin_marker_dot_color'] == 'black':
+        origin_num = 4
+    elif chessboard['origin_marker_dot_color'] == 'white':
+        origin_num = 3
+
+    loc = np.argwhere(meta == origin_num)
+    if loc.shape[0] != 1:
+        raise ValueError(f"Expected exactly one origin marker with ID {origin_num} in meta. Please check origin_marker_dot_color in your chessboard definition")
+    
+    origin_down_local, origin_right_local = loc[0]
+
+    # Where the origin (4) should be in the full chessboard
+    origin_down_global = chessboard['origin_marker_pos_down']
+    origin_right_global = chessboard['origin_marker_pos_right']
+
+    # Compute how much padding is needed before and after
+    pad_top = origin_down_global - origin_down_local
+    pad_left = origin_right_global - origin_right_local
+    pad_bottom = chessboard['num_corners_down'] - (pad_top + meta.shape[0])
+    pad_right = chessboard['num_corners_right'] - (pad_left + meta.shape[1])
+
+    # Sanity check
+    if pad_top < 0 or pad_bottom < 0 or pad_left < 0 or pad_right < 0:
+        raise ValueError("Meta data too large or origin mismatch for target chessboard size. Please check your chessboard definition")
+
+    # Pad with -1 to fill the full chessboard
+    padded_meta = np.pad(meta,
+                         ((pad_top, pad_bottom), (pad_left, pad_right)),
+                         mode='constant',
+                         constant_values=-1)
+    
+    # Create ID array of the whole chessboard
+    paddded_ids = np.arange(chessboard['num_corners_down'] * chessboard['num_corners_right']).reshape((chessboard['num_corners_down'] , chessboard['num_corners_right']))
+
+    # Kick out non visible entries
+    ids = paddded_ids[padded_meta != -1]
+    return ids
 
 if __name__ == '__main__':
     # Load image
-    image = cv2.imread('./colmap_dataset/images/0003.png')
+    image = cv2.imread('./data/tmp_colmap_dataset/images/0002.png')
 
     # Define Chessboard --> Information in description of findChessboardCorners
     chessboard = {'num_corners_down' : 14,
