@@ -1,7 +1,9 @@
 # Cache
 __pycache__/
-/data_streams/__pycache__/
-/scripts/__pycache__/
+/streams/__pycache__/
+/capture/__pycache__/
+/debug/__pycache__/
+/hec/__pycache__/
 
 # Build stuff
 build/
