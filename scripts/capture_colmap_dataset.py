@@ -96,4 +96,4 @@ def capture_dataset(output_dir="colmap_dataset", mode="auto"):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    capture_dataset(output_dir='colmap_dataset', mode='manually')
+    capture_dataset(output_dir='data/tmp_colmap_dataset', mode='manually')
