@@ -111,7 +111,6 @@ def get_corner_ids(meta, chessboard):
     pad_left = origin_right_global - origin_right_local
     pad_bottom = chessboard['num_corners_down'] - (pad_top + meta.shape[0])
     pad_right = chessboard['num_corners_right'] - (pad_left + meta.shape[1])
-    print(pad_bottom, pad_left, pad_right, pad_top)
 
     # Sanity check
     if pad_top < 0 or pad_bottom < 0 or pad_left < 0 or pad_right < 0:
@@ -122,8 +121,6 @@ def get_corner_ids(meta, chessboard):
                          ((pad_top, pad_bottom), (pad_left, pad_right)),
                          mode='constant',
                          constant_values=9)
-    
-    print(padded_meta)
     
     # Create ID array of the whole chessboard
     paddded_ids = np.arange(chessboard['num_corners_down'] * chessboard['num_corners_right']).reshape((chessboard['num_corners_down'] , chessboard['num_corners_right']))
