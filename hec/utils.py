@@ -1,16 +1,20 @@
 import cv2
 import numpy as np
+from packaging import version
 
 def findChessboardCorners(image, chessboard, visualize=False):
     """
     Wrapper function for the OpenCV-Function findChessboardCornersSB() found at: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#gadc5bcb05cb21cf1e50963df26986d7c9
     Simplifies the usage of above function by directly returning unique IDs for each corner based on the used chessboard.
+    Only works with OpenCV Version ∈ [3.4, 4.11]
+    Numpy 2 only works with OpenCV >= 4.10.0.84, so essentially the only two compatible OpenCV-Versions are [4.10.0.84, 4.11.0.86]
     The chessboard can be defined using the dictionary below.
 
     When working with the Radon Checkerboard, please note:
         - The three "dotted" squares mark the finder pattern
-        - Of those three markers, the one with the other color than the other two defines the chessboard origin
-        - Orient the chessboard so that the Origin is top left, with the other two markers defining the axis down and the axis right
+        - There must be one white square with black dot and two black squares with white dot that define a triangle
+        - Of those three markers, the white square with the black dot marks the origin
+        - Orient the chessboard so that the origin is top left, with the other two markers defining the axis down and the axis right
         - Each square belongs to its top left corner
         - When determining the position of a square: Count the number of corner in the desired direction beginning at 0
 
@@ -22,8 +26,12 @@ def findChessboardCorners(image, chessboard, visualize=False):
                 - 'num_corners_down' (int): Count of corner in right-direction
                 - 'origin_marker_pos_down' (int): Position of the origin marker in down-direction
                 - 'origin_marker_pos_right' (int): Position of the origin marker in right-direction
-                - 'origin_marker_dot_color' (string): Color of the dot inside the origin marker
     """
+    # Check if the current OpenCV Version works fine with findChessboardCornersSB()
+    current_version = cv2.__version__
+    if not (version.parse("4.3.0") <= version.parse(current_version) <= version.parse("4.11.0")):
+        print(f"⚠️ Warning: OpenCV version {current_version} is not supported (It returnes a wrong meta-array in cv2.findChessboardCornersSBWithMeta()). Please install a version between 4.3.0 and 4.11.0.")
+
     grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Initial minimal pattern size --> Any patterns larger than this can be detected, so set very low
@@ -88,15 +96,9 @@ def get_corner_ids(meta, chessboard):
         chessboard (dict): See description in the function findChessboardCorners below
     """
     # Find the location of the origin in meta (local origin) --> either black or white dot
-    meta = meta.astype(np.int32)
-    if chessboard['origin_marker_dot_color'] == 'black':
-        origin_num = 4
-    elif chessboard['origin_marker_dot_color'] == 'white':
-        origin_num = 3
-
-    loc = np.argwhere(meta == origin_num)
+    loc = np.argwhere(meta == 4)
     if loc.shape[0] != 1:
-        raise ValueError(f"Expected exactly one origin marker with ID {origin_num} in meta. Please check origin_marker_dot_color in your chessboard definition")
+        raise ValueError(f"Expected exactly one origin marker with ID 4 in meta. Please check that your chessboard has one black dot and two white dots")
     
     origin_down_local, origin_right_local = loc[0]
 
@@ -109,6 +111,7 @@ def get_corner_ids(meta, chessboard):
     pad_left = origin_right_global - origin_right_local
     pad_bottom = chessboard['num_corners_down'] - (pad_top + meta.shape[0])
     pad_right = chessboard['num_corners_right'] - (pad_left + meta.shape[1])
+    print(pad_bottom, pad_left, pad_right, pad_top)
 
     # Sanity check
     if pad_top < 0 or pad_bottom < 0 or pad_left < 0 or pad_right < 0:
@@ -118,25 +121,26 @@ def get_corner_ids(meta, chessboard):
     padded_meta = np.pad(meta,
                          ((pad_top, pad_bottom), (pad_left, pad_right)),
                          mode='constant',
-                         constant_values=-1)
+                         constant_values=9)
+    
+    print(padded_meta)
     
     # Create ID array of the whole chessboard
     paddded_ids = np.arange(chessboard['num_corners_down'] * chessboard['num_corners_right']).reshape((chessboard['num_corners_down'] , chessboard['num_corners_right']))
 
     # Kick out non visible entries
-    ids = paddded_ids[padded_meta != -1]
+    ids = paddded_ids[padded_meta != 9]
     return ids
 
 if __name__ == '__main__':
     # Load image
-    image = cv2.imread('./data/tmp_colmap_dataset/images/0002.png')
+    image = cv2.imread('./data/tmp_colmap_dataset/images/0001.png')
 
     # Define Chessboard --> Information in description of findChessboardCorners
     chessboard = {'num_corners_down' : 14,
                   'num_corners_right' : 9,
                   'origin_marker_pos_down' : 5,
-                  'origin_marker_pos_right' : 3,
-                  'origin_marker_dot_color' : 'black'}
+                  'origin_marker_pos_right' : 3}
     
     # Find corners
     retval, corners, ids = findChessboardCorners(image, chessboard, visualize=True)

@@ -64,6 +64,35 @@ However, if you download the SDK yourself, you need to make some modifications t
      if self.rigid_body_listener is not None: self.rigid_body_listener(new_id, pos, rot, marker_error, tracking_valid)
      ```
 
+## Setting up this repository
+### Directly working with this repository
+To get started with working with this repository directly, clone this repository and create a new conda environment using
+```bash
+conda create -n mocap_ids python=3.12
+conda activate mocap_ids
+pip install -r requirements.txt
+```
+Additionally, install the [PyTorch version that best fits your system](https://pytorch.org/get-started/locally/).
+
+### Using this repository as a submodule
+To use this repository as a git submodule inside another project, add the submodule and edit .gitmodules (Here, the submodule gets added into a directory called "submodules"):
+```bash
+git submodule add git@github.com:theo-wner/mocap-ids-stream.git submodules
+git add .gitmodules submodules
+git commit -m "Add submodule"
+```
+Then install the submodule via pip:
+```bash
+pip install submodules/mocap-ids-stream
+```
+Pull changes via:
+```bash
+git submodule add git@github.com:theo-wner/mocap-ids-stream.git submodules
+git add .gitmodules submodules
+git commit -m "Add submodule"
+```
+
+
 ## Usage
 ### IDSStream Class
 The `IDSStream` class is a wrapper around the IDS Peak API, allowing for easy access to camera functionalities. 
@@ -132,4 +161,5 @@ This repository contains several example scripts that demonstrate how to use the
 Example usage:
 ```bash
 python -m scripts.capture_data.py
+```
 
