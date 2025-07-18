@@ -87,11 +87,9 @@ pip install submodules/mocap-ids-stream
 ```
 Pull changes via:
 ```bash
-git submodule add git@github.com:theo-wner/mocap-ids-stream.git submodules
-git add .gitmodules submodules
-git commit -m "Add submodule"
+git submodule update --remote submodules/mocap-ids-stream
 ```
-
+and reinstall with pip
 
 ## Usage
 ### IDSStream Class

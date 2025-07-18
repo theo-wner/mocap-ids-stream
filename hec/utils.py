@@ -30,7 +30,7 @@ def findChessboardCorners(image, chessboard, visualize=False):
     # Check if the current OpenCV Version works fine with findChessboardCornersSB()
     current_version = cv2.__version__
     if not (version.parse("4.3.0") <= version.parse(current_version) <= version.parse("4.11.0")):
-        print(f"⚠️ Warning: OpenCV version {current_version} is not supported (It returnes a wrong meta-array in cv2.findChessboardCornersSBWithMeta()). Please install a version between 4.3.0 and 4.11.0.")
+        print(f"⚠️ Warning: OpenCV version {current_version} is not supported. Please install either 4.10.0.84 or 4.11.0.86")
 
     grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
