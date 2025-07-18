@@ -15,6 +15,9 @@ if __name__ == "__main__":
     # Initialize camera and motion capture streams
     cam_stream = IDSStream(frame_rate='max', 
                            exposure_time='auto', 
+                           white_balance='auto',
+                           gain='auto',
+                           gamma=1.0,
                            resize=(1000, 1000))
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 

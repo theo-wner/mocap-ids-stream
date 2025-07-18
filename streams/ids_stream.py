@@ -19,10 +19,13 @@ class IDSStream:
     A class to stream images from an IDS camera in the background.
     """
 
-    def __init__(self, frame_rate='max', exposure_time='auto', resize=None):
+    def __init__(self, frame_rate, exposure_time, white_balance, gain, gamma, resize):
         # Member variables to control the streaming
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
+        self.white_balance = white_balance
+        self.gain = gain
+        self.gamma = gamma
         self.resize = resize
 
         # Member variables to store the latest data
@@ -74,15 +77,43 @@ class IDSStream:
                 print(f"Using maximum frame rate: {max_frame_rate} FPS")
             elif isinstance(self.frame_rate, int):
                 remote_nodemap.FindNode("AcquisitionFrameRate").SetValue(self.frame_rate)
+            else:
+                self.running = False
+                raise ValueError("Possible values for frame_rate are 'max' or (int)")
 
             # Exposure time
             if self.exposure_time == 'auto':
                 remote_nodemap.FindNode("ExposureAuto").SetCurrentEntry("Continuous")
             elif isinstance(self.exposure_time, int):
                 remote_nodemap.FindNode("ExposureTime").SetValue(self.exposure_time)
+            else:
+                self.running = False
+                raise ValueError("Possible values for exposure_time are 'auto' or (int)")
 
-            # Gain
-            remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Continuous")
+            # White balance
+            if self.white_balance == 'auto':
+                remote_nodemap.FindNode("BalanceWhiteAuto").SetCurrentEntry("Continuous")
+            elif self.white_balance == 'off':
+                 remote_nodemap.FindNode("BalanceWhiteAuto").SetCurrentEntry("Off")
+            else:    
+                self.running = False
+                raise ValueError("Possible values for white_balance are 'auto' or 'off'")
+
+            # Gain --> similar to ISO
+            if self.gain == 'auto':
+                remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Continuous")
+            elif self.gain == 'manually':
+                remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Off")
+                manual_gains = {"DigitalRed": 1.0, "DigitalGreen": 1.0, "DigitalBlue": 1.0}
+                for channel, gain_value in manual_gains.items():
+                    remote_nodemap.FindNode("GainSelector").SetCurrentEntry(channel)
+                    remote_nodemap.FindNode("Gain").SetValue(gain_value)
+            else:    
+                self.running = False
+                raise ValueError("Possible values for gain are 'auto' or 'manually'")       
+
+            # Gamma-correction
+            remote_nodemap.FindNode("Gamma").SetValue(self.gamma)
 
             # Enable Metadata (Chunks) for timestamp retrieval
             remote_nodemap.FindNode("ChunkModeActive").SetValue(True)
@@ -142,6 +173,7 @@ class IDSStream:
             print(f"Camera setup failed: {e}")
 
         finally:
+            remote_nodemap.FindNode("DeviceReset").Execute()
             ids_peak.Library.Close()
             print("Camera stream stopped.")
     
