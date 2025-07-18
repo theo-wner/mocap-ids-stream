@@ -1,0 +1,8 @@
+# Required Packages:
+numpy
+opencv-python
+matplotlib
+scipy
+ids_peak
+
+# Additionally install PyTorch Version best fitting to your system from https://pytorch.org/get-started/locally/
