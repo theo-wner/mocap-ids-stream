@@ -131,7 +131,7 @@ def get_corner_ids(meta, chessboard):
 
 if __name__ == '__main__':
     # Load image
-    image = cv2.imread('./data/tmp_colmap_dataset/images/0001.png')
+    image = cv2.imread('./data/tmp_colmap_dataset/images/0004.png')
 
     # Define Chessboard --> Information in description of findChessboardCorners
     chessboard = {'num_corners_down' : 14,
