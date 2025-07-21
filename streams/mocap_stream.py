@@ -94,7 +94,7 @@ class MoCapStream:
                 last_mocap_ts = current_mocap_ts
             if future_poses_cnt >= n:
                 break
-            time.sleep(0.001)
+            time.sleep(0.0001)
     
     def get_interpolated_pose(self, query_time, marker_error_threshold, show_plot=False):
         """
@@ -108,7 +108,7 @@ class MoCapStream:
             numpy.ndarray: The interpolated position.
             numpy.ndarray: The interpolated rotation as a quaternion.
         """
-        self.wait_for_n_poses(n=self.buffer_size // 2) # Ensure the buffer has enough poses to match
+        self.wait_for_n_poses(self.buffer_size // 2) # Ensure the buffer has enough poses to match
         current_buffer = self.pose_buffer.copy() # Get the current buffer of mocap data
         
         # Filter the buffer for valid mocap data based on tracking validity and marker error threshold
@@ -117,9 +117,15 @@ class MoCapStream:
             if data['tracking_valid'] and data['mean_error'] < marker_error_threshold:
                 interest_buffer.append(data)
 
-        if len(interest_buffer) < 5:
-            return None, None, None, None
-        
+        # Ensure at least 2 poses before and 2 poses after the query_time
+        query_sec = query_time.total_seconds()
+        times = [data['timestamp'].total_seconds() for data in interest_buffer]
+        before_count = sum(t < query_sec for t in times)
+        after_count = sum(t > query_sec for t in times)
+
+        if before_count < 2 or after_count < 2:
+            return False, None, None, None, None
+
         # Extract times, positions, and rotations from the buffer
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
         positions = [data['rigid_body_pose']['position'] for data in interest_buffer]
@@ -138,7 +144,7 @@ class MoCapStream:
         # Query pose at the camera timestamp
         query_time = query_time.total_seconds()
         interpolated_position = np.array([s(query_time) for s in pos_splines])
-        interpolated_rotation = rot_spline(query_time).as_quat()
+        interpolated_rotation = rot_spline(query_time).as_quat(scalar_first=True)
 
         # Query velocities at the camera timestamp
         interpolated_linear_velocity_vec = np.array([s(query_time, 1) for s in pos_splines])
@@ -206,7 +212,7 @@ class MoCapStream:
             plt.tight_layout()
             plt.show()
 
-        return interpolated_position, interpolated_rotation, interpolated_lateral_velocity, interpolated_angular_velocity
+        return True, interpolated_position, interpolated_rotation, interpolated_lateral_velocity, interpolated_angular_velocity
     
     def stop(self):
         self.client.shutdown()

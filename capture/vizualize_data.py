@@ -17,13 +17,13 @@ if __name__ == "__main__":
                            exposure_time='auto', 
                            white_balance='auto',
                            gain='auto',
-                           gamma=1.0,
+                           gamma=1.5,
                            resize=(1000, 1000))
     
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
-                               buffer_size=20)
+                               buffer_size=15)
     cam_stream.start_timing()
     mocap_stream.start_timing()
 
@@ -36,9 +36,11 @@ if __name__ == "__main__":
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
             print("Picture taken! Waiting for enough mocap poses after acquisition...")
-            pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(query_time=info['timestamp'], marker_error_threshold=0.001, show_plot=True)
-            if pos is not None:
+            valid_pose, pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(query_time=info['timestamp'], marker_error_threshold=0.001, show_plot=True)
+            if valid_pose:
                 print(f"Linear velocity: {v_trans:.2f} m/s, Angular velocity: {v_rot:.2f} rad/s")
+            else:
+                print("No valid pose")
         elif key == ord('q'):
             print("Exiting...")
             break

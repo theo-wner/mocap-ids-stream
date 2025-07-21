@@ -7,7 +7,7 @@ def findChessboardCorners(image, chessboard, visualize=False):
     Wrapper function for the OpenCV-Function findChessboardCornersSB() found at: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#gadc5bcb05cb21cf1e50963df26986d7c9
     Simplifies the usage of above function by directly returning unique IDs for each corner based on the used chessboard.
     Only works with OpenCV Version ∈ [3.4, 4.11]
-    Numpy 2 only works with OpenCV >= 4.10.0.84, so essentially the only two compatible OpenCV-Versions are [4.10.0.84, 4.11.0.86]
+    Numpy 2 only works with OpenCV >= 4.10.0.84, so essentially the only two compatible OpenCV-Versions are {4.10.0.84, 4.11.0.86}
     The chessboard can be defined using the dictionary below.
 
     When working with the Radon Checkerboard, please note:
@@ -46,6 +46,8 @@ def findChessboardCorners(image, chessboard, visualize=False):
     
     # Detect corners
     retval, corners, meta = cv2.findChessboardCornersSBWithMeta(grey, initial_pattern_size, flags)
+    print(corners)
+    print(meta)
 
     # Only continue if corners were found
     if retval:
@@ -131,7 +133,7 @@ def get_corner_ids(meta, chessboard):
 
 if __name__ == '__main__':
     # Load image
-    image = cv2.imread('./data/tmp_colmap_dataset/images/0004.png')
+    image = cv2.imread('./data/tmp_colmap_dataset/images/0003.png')
 
     # Define Chessboard --> Information in description of findChessboardCorners
     chessboard = {'num_corners_down' : 14,
