@@ -10,6 +10,7 @@ Author:
 import cv2
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
+from streams.stream_matcher import StreamMatcher
 
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
@@ -24,8 +25,9 @@ if __name__ == "__main__":
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=15)
-    cam_stream.start_timing()
-    mocap_stream.start_timing()
+    
+    matcher = StreamMatcher(cam_stream, mocap_stream, 10)
+    matcher.start()
 
     # Capture Loop
     print("Press 'c' to capture and match, or 'q' to quit.")
@@ -36,8 +38,10 @@ if __name__ == "__main__":
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
             print("Picture taken! Waiting for enough mocap poses after acquisition...")
-            valid_pose, pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(query_time=info['timestamp'], marker_error_threshold=0.001, show_plot=True)
+            valid_pose, frame, pose, pose_velocity = matcher.getnext(marker_error_threshold=0.001, show_plot=True)
             if valid_pose:
+                v_trans = pose_velocity['pos']
+                v_rot = pose_velocity['rot']
                 print(f"Linear velocity: {v_trans:.2f} m/s, Angular velocity: {v_rot:.2f} rad/s")
             else:
                 print("No valid pose")
@@ -45,7 +49,8 @@ if __name__ == "__main__":
             print("Exiting...")
             break
 
-    # Close streams and windows   
+    # Close windows Streams 
+    matcher.stop()
     cam_stream.stop()
     mocap_stream.stop()
     cv2.destroyAllWindows()
