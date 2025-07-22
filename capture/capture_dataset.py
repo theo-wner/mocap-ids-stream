@@ -20,7 +20,7 @@ def capture_dataset(stream_matcher, output_dir, mode):
     # Create Directory
     output_dir = get_unique_path(output_dir)
     images_dir = os.path.join(output_dir, "images")
-    poses_path = os.path.join(output_dir, "poses.txt")
+    poses_path = os.path.join(output_dir, "mocap_poses.txt")
     os.makedirs(images_dir)
 
     # Set thresholds for auto capture mode
