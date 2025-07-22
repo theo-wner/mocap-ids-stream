@@ -7,6 +7,7 @@ Author:
 import numpy as np
 import threading
 import time
+import torch
 from scipy.spatial.transform import Rotation as R, RotationSpline
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
@@ -23,10 +24,11 @@ class StreamMatcher():
         self.resync_thread = threading.Thread(target=self.resync_loop, daemon=True)
         self.running = True
 
-    def start(self):
+    def start_timing(self):
         self.ids_stream.start_timing()
         self.mocap_stream.start_timing()
         self.resync_thread.start()
+        time.sleep(1)
 
     def resync_loop(self):
         while self.running:
@@ -48,17 +50,29 @@ class StreamMatcher():
                 break
             time.sleep(0.0001)
 
-    def getnext(self, show_plot=True):
+    def getnext(self, return_tensor=True, for_image=None, show_plot=False):
         """
-        Returns the current frame
+        Returns the current frame together with its corresponding pose information
+
+        Args:
+            - return_tensor (boolean): Determines wheather to return the image frame as pytorch tensor or not
+            - for_image (tuple): Optional, if passed, takes image and info as tuple from the argument, if None, retrieves a new image from ids_stream 
+            - show_plot (boolean): Determines wheather to show a plot for pose visulization or not
 
         Returns:
-            - is_valid (boolean): Shows if the interpolated pose is valid
             - frame (numpy.ndarray): The image
-            - pose (dict): The interpolated pose by the timestamp of image retrieval
-            - pose_velocitiy (dict): The interpolated pose velocities by the timestamp of image retrieval
+            - info (dict): Dictionary containing the pose info
+                - keys:
+                    - is_valid (boolean): Shows if the interpolated pose is valid
+                    - pose (dict): The interpolated pose by the timestamp of image retrieval
+                    - pose_velocitiy (dict): The interpolated pose velocities by the timestamp of image retrieval
         """
-        frame, info = self.ids_stream.getnext(return_tensor=False)
+        if for_image is None:
+            frame, info = self.ids_stream.getnext(return_tensor=False)
+        elif isinstance(for_image, tuple):
+            frame, info = for_image
+        else:
+            raise ValueError("for_image has to be a tuple of type (frame, info)")
         query_time = info['timestamp'].total_seconds()
         self.wait_for_n_poses(self.mocap_stream.buffer_size // 2) # Ensure the buffer has enough poses to match
         current_buffer = self.mocap_stream.get_current_buffer() # Get the current buffer of mocap data
@@ -75,7 +89,10 @@ class StreamMatcher():
         before_count = sum(t < query_time for t in times)
         after_count = sum(t > query_time for t in times)
         if before_count < 2 or after_count < 2:
-            return False, None, None, None
+            info = {'is_valid' : False, 'pose' : None, 'pose_velocity' : None}
+            if return_tensor:
+                frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
+            return frame, info
         
         # Extract times, positions, and rotations from the buffer
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
@@ -103,9 +120,12 @@ class StreamMatcher():
         interpolated_angular_velocity_vec = rot_spline(query_time, 1)
         interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
 
-        # Create return dicts
+        # Create return dict
         pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation}
         pose_velocity = {'pos' : interpolated_lateral_velocity, 'rot' : interpolated_angular_velocity}
+        info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity}
+        if return_tensor:
+            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
 
         # Plotting for debugging (optional)
         if show_plot:
@@ -166,7 +186,7 @@ class StreamMatcher():
             plt.tight_layout()
             plt.show()
 
-        return True, frame, pose, pose_velocity
+        return frame, info
 
     def stop(self):
         self.running = False

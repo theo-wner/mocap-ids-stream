@@ -9,9 +9,10 @@ import os
 import cv2
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
+from streams.stream_matcher import StreamMatcher
 import time
 
-def capture_dataset(cam_stream, mocap_stream, output_dir, mode):
+def capture_dataset(stream_matcher, output_dir, mode):
     """
     This function captures frames from the camera and motion capture data in a loop.
     Whenever a pose satisfies the "saving-conditions", it saves the current frame and pose to a file.
@@ -34,19 +35,26 @@ def capture_dataset(cam_stream, mocap_stream, output_dir, mode):
         last_saved_pos = None  # Track last saved position
 
         while True:
-            # Capture and display camera frame
-            frame, info = cam_stream.getnext(return_tensor=False)
+            # Get Stream data
+            frame, info = stream_matcher.getnext(return_tensor=False)
+            valid_pose = info['is_valid']
+
+            if not valid_pose:
+                continue
+
+            pos = info['pose']['pos']
+            rot = info['pose']['rot']
+            v_trans = info['pose_velocity']['pos']
+            v_rot = info['pose_velocity']['rot']
+
             if frame is not None:
                 frame_vis = cv2.resize(frame, (1000, 1000))
                 cv2.imshow("Camera", frame_vis)
             key = cv2.waitKey(1) & 0xFF
+
             if key == ord('q'):
                 print("Exiting...")
                 break
-            
-            # Capture motion capture pose
-            valid_pose, pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(
-                info['timestamp'], marker_error_threshold=0.001, show_plot=False)
             
             if not valid_pose:
                 continue
@@ -100,6 +108,7 @@ def get_unique_path(base_path):
         counter += 1
 
 if __name__ == "__main__":
+    # Initialize camera and motion capture streams
     cam_stream = IDSStream(frame_rate='max', 
                            exposure_time='auto', 
                            white_balance='auto',
@@ -112,11 +121,11 @@ if __name__ == "__main__":
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=15)
     
-    cam_stream.start_timing()
-    mocap_stream.start_timing()
-    time.sleep(1)
+    matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10)
+    matcher.start_timing()
 
-    capture_dataset(cam_stream, mocap_stream, output_dir='data/hec_colmap', mode='auto')
+    capture_dataset(matcher, output_dir='data/hec_colmap', mode='auto')
 
+    matcher.stop()
     cam_stream.stop()
     mocap_stream.stop()

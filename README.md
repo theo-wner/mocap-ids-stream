@@ -97,9 +97,12 @@ The `IDSStream` class is a wrapper around the IDS Peak API, allowing for easy ac
 To use the `IDSStream` class, you can create an instance of it and call its methods to control the camera. For example:
 ```python
 from streams.ids_stream import IDSStream 
-cam_stream = IDSStream(frame_rate=30, 
-                        exposure_time=20000, 
-                        resize=(1000, 1000))
+   cam_stream = IDSStream(frame_rate='max', 
+                        exposure_time='auto', 
+                        white_balance='auto',
+                        gain='auto',
+                        gamma=1.0,
+                        resize=None)
 frame, info = cam_stream.getnext()
 cam_stream.stop()
 ```
@@ -109,16 +112,16 @@ To use the `MoCapStream` class, you can create an instance of it and call its me
 The motion capture data is hold in a buffer, to allow for interpolation of poses.
 ```python
 from streams.mocap_stream import MoCapStream
-mocap_stream = MoCapStream(client_ip="172.22.147.168",
-                            server_ip="172.22.147.182", 
-                            rigid_body_id=2,
-                            buffer_size=20)
+   mocap_stream = MoCapStream(client_ip="172.22.147.168",
+                              server_ip="172.22.147.182", 
+                              rigid_body_id=2,
+                              buffer_size=15)
 pose = mocap_stream.getnext()
 mocap_stream.stop()
 ```
-
-### Simultaneous Capture
+### StreamMatcher Class
 This repository also provides functionality to capture data from both the IDS camera and the OptiTrack motion capture system simultaneously and match them based on timestamps.
+This is handled by the `StreamMatcher` class.
 A possible use case is to capture images from the IDS camera and corresponding poses from the OptiTrack system, which can then be used for various applications such as 3D reconstruction.
 The intended pipeline for that is the following:
 1. Start both streams:
@@ -133,27 +136,30 @@ mocap_stream = MoCapStream(client_ip="172.22.147.168",
                             rigid_body_id=2,
                             buffer_size=20)
 ```
-2. Start timing for both streams:
-This resets the internal timers of both streams, allowing you to capture data with synchronized timestamps.
+2. Initialize and start StreamMatcher:
+This starts the StreamMatcher instance, providing functionality for simultaneous Camera and MoCap data retrieval.
+Also, the StreamMatcher insance handles time synchronization by resetting the internal timers of both streams with continouus resnychronizing.
 ```python
-cam_stream.start_timing()
-mocap_stream.start_timing()
+matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10)
+matcher.start_timing()
 ```
-3. Take an image from the camera:
+3. Retrieve simultaneous Camera and MoCap data:
+This retrieves the most current camera frame and calculates the best fitting interpolated pose being returned in `info`.
 ```python
-frame, info = cam_stream.getnext()
-timestamp = info['timestamp']
+frame, info = matcher.getnext()
 ```
-4. Get the corresponding pose from the motion capture system:
-This method retrieves the pose at the specified timestamp, interpolating the pose buffer.
+4. Stop all running Stream instances:
 ```python
-pos, rot, v_trans, v_rot = mocap_stream.get_interpolated_pose(query_time=timestamp)
+matcher.stop()
+cam_stream.stop()
+mocap_stream.stop()
 ```
 
 ### Example Scripts
-This repository contains several example scripts that demonstrate how to use the `IDSStream` and `MoCapStream` classes for various tasks:
-- `capture_data.py`: Captures data from both the IDS camera and the OptiTrack motion capture system and visualizes the captured data.
-- `capture_colmap_dataset.py`: Captures a dataset suitable for COLMAP, including images and corresponding poses.
+This repository contains several capture scripts that demonstrate how to use the `IDSStream`, `MoCapStream` and `StreamMatcher` classes for various tasks:
+- `visualize_data.py`: Captures data from both the IDS camera and the OptiTrack motion capture system and visualizes the captured data.
+- `capture_dataset.py`: Captures a dataset, including images and corresponding poses.
+It also features debugging scripts useful for testing:
 - `check_time_sync.py`: Checks the time synchronization between the IDS camera and the OptiTrack motion capture system.
 - `check_frame_rate.py`: Verifies the frame rates of both the IDS camera and the OptiTrack motion capture system.
 Example usage:
