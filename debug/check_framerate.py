@@ -36,7 +36,7 @@ def check_mocap_framerate(mocap_stream, duration=5):
     last_pose = None
 
     while time.time() - start_time < duration:
-        mocap_dict = mocap_stream.get_current_data()
+        mocap_dict = mocap_stream.getnext()
         timestamp = mocap_dict['timestamp']
         pose = mocap_dict['rigid_body_pose']
 
@@ -87,9 +87,8 @@ def check_cam_framerate(cam_stream, duration=5):
     last_frame = None
 
     while time.time() - start_time < duration:
-        cam_dict = cam_stream.get_current_data()
-        timestamp = cam_dict['timestamp']
-        frame = cam_dict['frame']
+        frame, info = cam_stream.getnext()
+        timestamp = info['timestamp']
 
         if timestamp is not None and not last_timestamp == timestamp:
             different_timestamps += 1
@@ -113,14 +112,17 @@ def check_cam_framerate(cam_stream, duration=5):
     print("-------------------------------------------------------------------")
 
 if __name__ == "__main__":
-    # Initialize camera and motion capture streams
-    cam_stream = IDSStream(frame_rate=30, 
-                           exposure_time=20000, 
-                           resize=None)
+    cam_stream = IDSStream(frame_rate='max', 
+                           exposure_time='auto', 
+                           white_balance='auto',
+                           gain='auto',
+                           gamma=1.5,
+                           resize=(1000, 1000))
+    
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
-                               buffer_size=20)
+                               buffer_size=15)
 
     try:
         check_cam_framerate(cam_stream, duration=1)

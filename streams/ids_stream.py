@@ -29,7 +29,7 @@ class IDSStream:
         self.resize = resize
 
         # Member variables to store the latest data
-        self.timing_offset = None
+        self.initial_timing_offset = None
         self.frame = None
         self.info = {"timestamp": None, "is_test": False}
 
@@ -49,7 +49,10 @@ class IDSStream:
         return 100_000_000  
 
     def start_timing(self):
-        self.timing_offset = self.info["timestamp"]
+        self.initial_timing_offset = self.info["timestamp"]
+
+    def resync_timing(self):
+        self.initial_timing_offset += self.info["timestamp"]
 
     def update_loop(self):
         """
@@ -149,8 +152,8 @@ class IDSStream:
                     # Process timestamp
                     timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
                     timestamp = timedelta(seconds=timestamp / 1e9)  # Convert nanoseconds to seconds
-                    if self.timing_offset is not None:
-                        timestamp = timestamp - self.timing_offset
+                    if self.initial_timing_offset is not None:
+                        timestamp = timestamp - self.initial_timing_offset
                     self.info['timestamp'] = timestamp
                     self.info['is_test'] = False 
 

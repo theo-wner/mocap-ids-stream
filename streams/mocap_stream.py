@@ -29,7 +29,7 @@ class MoCapStream:
         self.buffer_size = buffer_size
 
         # Member variables to buffer the data
-        self.timing_offset = None
+        self.initial_timing_offset = None
         self.timestamp = None # Extra member needed because timestamp is retrieved via another listener
         self.pose_buffer = deque(maxlen=self.buffer_size)
         
@@ -53,7 +53,11 @@ class MoCapStream:
             raise RuntimeError(f"Failed to initialize MoCapStream: Could not connect to server {self.server_ip} at client {self.client_ip}.")
 
     def start_timing(self):
-        self.timing_offset = self.pose_buffer[-1]['timestamp']
+        self.initial_timing_offset = self.pose_buffer[-1]['timestamp']
+
+    def resync_timing(self):
+        self.initial_timing_offset += self.pose_buffer[-1]['timestamp']
+        self.pose_buffer.clear() # Clear buffer for strictly increasing timestamps
 
     def new_frame_listener(self, frame_data):
         timestamp = frame_data.get('timestamp')
@@ -61,10 +65,10 @@ class MoCapStream:
 
     def rigid_body_listener(self, rigid_body_id, position, rotation, marker_error, tracking_valid):
         if rigid_body_id == self.rigid_body_id:
-
+            
             # Apply timing offset if set
-            if self.timing_offset is not None:
-                timestamp = self.timestamp - self.timing_offset
+            if self.initial_timing_offset is not None:
+                timestamp = self.timestamp - self.initial_timing_offset
             else:
                 timestamp = self.timestamp
 

@@ -10,16 +10,19 @@ from streams.mocap_stream import MoCapStream
 import time
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 # Initialize camera and motion capture streams
-cam_stream = IDSStream(frame_rate=30, 
-                        exposure_time=20000, 
-                        resize=None)
+cam_stream = IDSStream(frame_rate='max', 
+                        exposure_time='auto', 
+                        white_balance='auto',
+                        gain='auto',
+                        gamma=1.5,
+                        resize=(1000, 1000))
+
 mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                             server_ip="172.22.147.182", 
                             rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
-                            buffer_size=20)
+                            buffer_size=15)
 
 # Start time synchronization
 mocap_stream.start_timing()
@@ -52,10 +55,10 @@ cnt = 0
 try:
     while True:
         timestamp_python = time.time() - t0
-        mocap_dict = mocap_stream.get_current_data()
+        mocap_dict = mocap_stream.getnext()
         timestamp_mocap = mocap_dict['timestamp']
-        cam_dict = cam_stream.get_current_data()
-        timestamp_cam = cam_dict['timestamp']
+        frame, info = cam_stream.getnext()
+        timestamp_cam = info['timestamp']
 
         # Only update if both timestamps are new
         if (timestamp_cam != last_timestamp_cam and

@@ -39,7 +39,6 @@ if __name__ == "__main__":
         if key == ord('c'):
             print("Picture taken! Waiting for enough mocap poses after acquisition...")
             frame, info = matcher.getnext(for_image=(frame, info), show_plot=True)
-            print(frame, info)
             if info['is_valid']:
                 v_trans = info['pose_velocity']['pos']
                 v_rot = info['pose_velocity']['rot']

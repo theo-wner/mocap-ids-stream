@@ -34,8 +34,8 @@ class StreamMatcher():
         while self.running:
             time.sleep(self.resync_interval)
             print("Resyncronizing timestamps")
-            self.ids_stream.start_timing
-            self.mocap_stream.start_timing
+            self.ids_stream.resync_timing()
+            self.mocap_stream.resync_timing()
 
     def wait_for_n_poses(self, n):
         # Waits until the pose buffer has at least n future poses.
@@ -86,6 +86,8 @@ class StreamMatcher():
 
         # Ensure at least 2 poses before and 2 poses after the query_time
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
+        print(f"Query Time: {query_time}")
+        print(f"Time range in buffer: [{times[0]}, {times[-1]}]")
         before_count = sum(t < query_time for t in times)
         after_count = sum(t > query_time for t in times)
         if before_count < 2 or after_count < 2:
