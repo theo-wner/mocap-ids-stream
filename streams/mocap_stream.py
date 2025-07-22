@@ -57,7 +57,6 @@ class MoCapStream:
 
     def resync_timing(self):
         self.initial_timing_offset += self.pose_buffer[-1]['timestamp']
-        self.pose_buffer.clear() # Clear buffer for strictly increasing timestamps
 
     def new_frame_listener(self, frame_data):
         timestamp = frame_data.get('timestamp')

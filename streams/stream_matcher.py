@@ -36,19 +36,21 @@ class StreamMatcher():
             print("Resyncronizing timestamps")
             self.ids_stream.resync_timing()
             self.mocap_stream.resync_timing()
-
+            time.sleep(0.1)
+            
     def wait_for_n_poses(self, n):
-        # Waits until the pose buffer has at least n future poses.
-        future_poses_cnt = 0
-        last_mocap_ts = self.mocap_stream.getnext()['timestamp'].total_seconds()
-        while True:
-            current_mocap_ts = self.mocap_stream.getnext()['timestamp'].total_seconds()
-            if current_mocap_ts > last_mocap_ts:
-                future_poses_cnt += 1
-                last_mocap_ts = current_mocap_ts
-            if future_poses_cnt >= n:
-                break
-            time.sleep(0.0001)
+        """
+        Waits until `n` new unique mocap poses have appeared in the buffer.
+        Uses object identity (memory address) to detect new pose entries.
+        """
+        buffer = self.mocap_stream.get_current_buffer()
+        seen_ids = {id(pose) for pose in buffer}
+        
+        while len(seen_ids) < len(buffer) + n:
+            buffer = self.mocap_stream.get_current_buffer()
+            seen_ids.update(id(pose) for pose in buffer)
+            time.sleep(0.001)
+
 
     def getnext(self, return_tensor=True, for_image=None, show_plot=False):
         """
@@ -77,17 +79,15 @@ class StreamMatcher():
         self.wait_for_n_poses(self.mocap_stream.buffer_size // 2) # Ensure the buffer has enough poses to match
         current_buffer = self.mocap_stream.get_current_buffer() # Get the current buffer of mocap data
 
-        # Filter the buffer for valid mocap data based on tracking validity and marker error threshold
+        # Filter the buffer for valid mocap data based on tracking validity and marker error threshold and sort by timestamp
         marker_error_threshold = 0.001
-        interest_buffer = []
-        for data in current_buffer:
-            if data['tracking_valid'] and data['mean_error'] < marker_error_threshold:
-                interest_buffer.append(data)
+        interest_buffer = sorted(
+            [data for data in current_buffer if data['tracking_valid'] and data['mean_error'] < marker_error_threshold],
+            key=lambda d: d['timestamp'].total_seconds()
+        )
 
         # Ensure at least 2 poses before and 2 poses after the query_time
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
-        print(f"Query Time: {query_time}")
-        print(f"Time range in buffer: [{times[0]}, {times[-1]}]")
         before_count = sum(t < query_time for t in times)
         after_count = sum(t > query_time for t in times)
         if before_count < 2 or after_count < 2:
