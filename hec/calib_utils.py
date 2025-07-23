@@ -32,8 +32,6 @@ def findChessboardCorners(image, chessboard, visualize=False):
     if not (version.parse("4.3.0") <= version.parse(current_version) <= version.parse("4.11.0")):
         print(f"⚠️ Warning: OpenCV version {current_version} is not supported. Please install either 4.10.0.84 or 4.11.0.86")
 
-    grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
     # Initial minimal pattern size --> Any patterns larger than this can be detected, so set very low
     initial_pattern_size = (3, 3)
 
@@ -45,43 +43,15 @@ def findChessboardCorners(image, chessboard, visualize=False):
             cv2.CALIB_CB_MARKER) # Forces the input image to have the finder pattern (needed for identifying homologous points with partially unvisible chessboard)
     
     # Detect corners
-    retval, corners, meta = cv2.findChessboardCornersSBWithMeta(grey, initial_pattern_size, flags)
+    retval, corners, meta = cv2.findChessboardCornersSBWithMeta(image, initial_pattern_size, flags)
 
     # Only continue if corners were found
     if retval:
-        print(f"Total corners found: {len(corners)}")
-        print(f"Detected pattern size: {meta.shape}")
-
-        # Get the associated id for each corner
         ids = get_corner_ids(meta, chessboard)
-
-        if visualize:
-            # Annotate each corner with its ID
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 1
-            font_color = (0, 255, 0)
-            thickness = 2
-
-            for idx, corner in enumerate(corners):
-                x, y = corner.ravel().astype(int)
-                text = str(ids[idx])
-                cv2.putText(image, text, (x + 5, y - 5), font, font_scale, font_color, thickness, cv2.LINE_AA)
-            
-            # Draw only the correct grid size
-            cv2.drawChessboardCorners(image, meta.shape, corners, retval)
-
-            # Show result
-            scale = 0.4
-            resized_img = cv2.resize(image, (0, 0), fx=scale, fy=scale)
-            cv2.imshow('Chessboard Corners with IDs (Scaled)', resized_img)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-        return retval, corners, ids
-    
+        found_shape = meta.shape
+        return retval, found_shape, corners, ids   
     else:
-        print("No chessboard corners found.")
-        return False, None, None
+        return False, None, None, None
 
 def get_corner_ids(meta, chessboard):
     """
@@ -131,7 +101,7 @@ def get_corner_ids(meta, chessboard):
 
 if __name__ == '__main__':
     # Load image
-    image = cv2.imread('./data/chessboard/image0.jpeg')
+    image = cv2.imread('./data/chessboard/IMG_1502.JPG')
 
     # Define Chessboard --> Information in description of findChessboardCorners
     chessboard = {'num_corners_down' : 23,
