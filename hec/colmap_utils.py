@@ -59,16 +59,43 @@ def run_colmap(dataset_path):
         check=True
     )
 
+def convert_to_tum(input_path, output_path):
+    """
+    Converts a COLMAP-style pose file into a TUM-style Trajectory file for evalutaion with evo.
+    """
+    with open(input_path, 'r') as f:
+        lines = f.readlines()
+
+    tum_lines = []
+    for idx, line in enumerate(lines):
+        if line.strip().startswith('IMAGE_ID') or not line.strip():
+            continue  # Skip header or empty lines
+
+        tokens = line.strip().split()
+        if len(tokens) < 8:
+            continue  # Skip malformed lines
+
+        image_id = int(tokens[0])
+        qw, qx, qy, qz = map(float, tokens[1:5])
+        tx, ty, tz = map(float, tokens[5:8])
+
+        tum_line = f"{idx:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {qw:.6f}"
+        tum_lines.append(tum_line)
+
+    with open(output_path, 'w') as f:
+        f.write("\n".join(tum_lines))
+        f.write("\n")
+
+    print(f"Converted {len(tum_lines)} poses to TUM format in: {output_path}")
+
+
 def compute_scale_factor(mocap_poses, colmap_poses):
     """
     Computes the scale factor between the metric MoCap poses and the unknown-scaled COLMAP poses.
     """
-    # Use only shared keys
-    common_keys = sorted(set(mocap_poses.keys()) & set(colmap_poses.keys()))
-
     # Extract translations
-    mocap_t = np.array([mocap_poses[k][:3, 3] for k in common_keys])
-    colmap_t = np.array([colmap_poses[k][:3, 3] for k in common_keys])
+    mocap_t = np.array([mocap_poses[k][:3, 3] for k in mocap_poses.keys()])
+    colmap_t = np.array([colmap_poses[k][:3, 3] for k in colmap_poses.keys()])
 
     # Center data
     mocap_centered = mocap_t - mocap_t.mean(axis=0)
@@ -78,24 +105,52 @@ def compute_scale_factor(mocap_poses, colmap_poses):
     mocap_norms = np.linalg.norm(mocap_centered, axis=1)
     colmap_norms = np.linalg.norm(colmap_centered, axis=1)
 
-    # Compute combined sort metric — e.g., colmap distance
-    # Sort by colmap_norms (but could also sort by mocap_norms or average)
-    sorted_indices = np.argsort(colmap_norms)
+    # Compute scale per Point
+    scales = mocap_norms / colmap_norms
 
-    # Keep only the norms furthest away
-    num_keep = 10
-    selected_indices = sorted_indices[-num_keep:]  # last half = farthest
+    return np.mean(scales), np.std(scales)
 
-    # Filter
-    filtered_mocap_norms = mocap_norms[selected_indices]
-    filtered_colmap_norms = colmap_norms[selected_indices]
-    per_point_scales = filtered_mocap_norms / filtered_colmap_norms
+def estimate_similarity_transform(mocap_poses, colmap_poses):
+    """
+    Estimate the similarity transform (scale, rotation, translation) 
+    from source_points to target_points using the Umeyama method.
+    """
+    # Extract translations
+    target_points = np.array([mocap_poses[k][:3, 3] for k in mocap_poses.keys()])
+    source_points = np.array([colmap_poses[k][:3, 3] for k in colmap_poses.keys()])
+    
+    assert source_points.shape == target_points.shape
 
-    # Compute statistics
-    scale = np.mean(per_point_scales)
-    scale_std = np.std(per_point_scales)
+    mu_source = np.mean(source_points, axis=0)
+    mu_target = np.mean(target_points, axis=0)
 
-    return scale, scale_std
+    src_centered = source_points - mu_source
+    tgt_centered = target_points - mu_target
+
+    # Covariance matrix
+    cov_matrix = np.dot(tgt_centered.T, src_centered) / source_points.shape[0]
+
+    # SVD
+    U, D, Vt = np.linalg.svd(cov_matrix)
+    S = np.eye(3)
+    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+        S[2, 2] = -1
+
+    R = np.dot(U, np.dot(S, Vt))
+    var_src = np.var(src_centered, axis=0).sum()
+    scale = np.trace(np.dot(np.diag(D), S)) / var_src
+
+    t = mu_target - scale * np.dot(R, mu_source)
+
+    # Transform the source (colmap) points
+    source_transformed = scale * np.dot(R, source_points.T).T + t
+
+    # Debug prints
+    print("\nTarget (MoCap) points:\n", target_points)
+    print("\nTransformed Source (COLMAP) points:\n", source_transformed)
+    print("\nDifference (Target - Transformed):\n", target_points - source_transformed)
+
+    return scale, R, t
 
 def apply_scale_factor(mocap_poses, scale):
     """

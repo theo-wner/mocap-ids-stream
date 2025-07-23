@@ -27,7 +27,7 @@ def filter_poses(dataset_path):
 
 def read_poses(filename):
     """
-    Reads poses from a COLMAP-like-style pose file and saves them to a dictionary with the corresponding image_id as key and a 4x4 homogenous matrix as value.
+    Reads poses from a COLMAP-style pose file and saves them to a dictionary with the corresponding image_id as key and a 4x4 homogenous matrix as value.
     """
     poses = {}
     with open(filename, 'r') as f:
@@ -47,7 +47,7 @@ def read_poses(filename):
 
 def compute_relative_motions(poses):
     """
-    Computes relative motions between a pose dictionary returned by read_poses()
+    Computes relative motions inside a pose dictionary returned by read_poses()
     """
     keys = sorted(poses.keys())
     rotations = []
