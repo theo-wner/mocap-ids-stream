@@ -13,9 +13,10 @@ cd = chessboard['num_corners_down']
 cr = chessboard['num_corners_right']
 ss = chessboard['square_size']
 
-# Define Object Points in millimeters
+# Define Object Points in meters
 objp = np.zeros((cd*cr, 3), np.float32)
-objp[:,:2] = np.mgrid[0:cr*ss:ss, 0:cd*ss:ss].T.reshape(-1, 2)
+objp[:,:2] = np.mgrid[0:cr*ss:ss, 0:cd*ss:ss].T.reshape(-1, 2) 
+objp = objp / 1000
 
 # Arrays to store object points and image points from all the images
 objpoints = [] # 3d point in real world space
