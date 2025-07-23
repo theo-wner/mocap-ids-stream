@@ -124,7 +124,7 @@ if __name__ == "__main__":
     matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10)
     matcher.start_timing()
 
-    capture_dataset(matcher, output_dir='data/hec_colmap', mode='auto')
+    capture_dataset(matcher, output_dir='data/buddha', mode='auto')
 
     matcher.stop()
     cam_stream.stop()
