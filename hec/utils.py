@@ -46,8 +46,6 @@ def findChessboardCorners(image, chessboard, visualize=False):
     
     # Detect corners
     retval, corners, meta = cv2.findChessboardCornersSBWithMeta(grey, initial_pattern_size, flags)
-    print(corners)
-    print(meta)
 
     # Only continue if corners were found
     if retval:
@@ -133,13 +131,13 @@ def get_corner_ids(meta, chessboard):
 
 if __name__ == '__main__':
     # Load image
-    image = cv2.imread('./data/tmp_colmap_dataset/images/0003.png')
+    image = cv2.imread('./data/chessboard/image0.jpeg')
 
     # Define Chessboard --> Information in description of findChessboardCorners
-    chessboard = {'num_corners_down' : 14,
-                  'num_corners_right' : 9,
-                  'origin_marker_pos_down' : 5,
-                  'origin_marker_pos_right' : 3}
+    chessboard = {'num_corners_down' : 23,
+                  'num_corners_right' : 16,
+                  'origin_marker_pos_down' : 10,
+                  'origin_marker_pos_right' : 7}
     
     # Find corners
     retval, corners, ids = findChessboardCorners(image, chessboard, visualize=True)
