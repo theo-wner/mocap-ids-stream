@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import cv2
+from scipy.spatial.transform import Rotation as R
 from hec.calib_utils import findChessboardCorners
 
 # Define Chessboard
@@ -22,10 +23,12 @@ objp = objp / 1000
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d point in image plane
 
-image_folder = "./data/chessboard"
+dataset = "./data/hec_checkerboard"
+image_folder = os.path.join(dataset, "images")
 
-for filename in os.listdir(image_folder):
+for filename in sorted(os.listdir(image_folder)):
     filepath = os.path.join(image_folder, filename)
+    print(filepath)
     img = cv2.imread(filepath)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -56,15 +59,36 @@ for filename in os.listdir(image_folder):
 cv2.destroyAllWindows()
 
 # Calibrate
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+repr_error, camera_matrix, distortion, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
-# Calculate mean reprojection error
-mean_error = 0
-for i in range(len(objpoints)):
-    imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
-    error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
-    mean_error += error
-print( "total error: {}".format(mean_error/len(objpoints)) )
+# Save poses
+pose_file = os.path.join(dataset, 'checkerboard_poses.txt')
+with open(pose_file, 'w') as f:
+    f.write("IMAGE_ID QW QX QY QZ TX TY TZ IMAGE_NAME\n")
+    for i, (rvec, tvec) in enumerate(zip(rvecs, tvecs)):
+        # Convert rotation vector to quaternion
+        rotmat, _ = cv2.Rodrigues(rvec)
+        quat = R.from_matrix(rotmat).as_quat()  # [x, y, z, w]
+        qw, qx, qy, qz = quat[3], quat[0], quat[1], quat[2]
+        tx, ty, tz = tvec.ravel()
+        
+        # Get original image name
+        image_name = sorted(os.listdir(image_folder))[i]
+        
+        f.write(f"{i} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {image_name}\n")
 
-# Save calibration result
-np.savez('calibration_result.npz', ret=ret, mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
+print(f"[✓] Saved poses to {pose_file}")
+
+# Save intrinsics
+intr_file = os.path.join(dataset, 'intrinsics.txt')
+fx = camera_matrix[0, 0]
+fy = camera_matrix[1, 1]
+cx = camera_matrix[0, 2]
+cy = camera_matrix[1, 2]
+k1, k2, p1, p2, k3 = distortion.ravel()[:5]  # Assumes only 5 distortion coefficients
+
+with open(intr_file, 'w') as f:
+    f.write("FX FY CX CY K1 K2 P1 P2 K3\n")
+    f.write(f"{fx:.6f} {fy:.6f} {cx:.6f} {cy:.6f} {k1:.6f} {k2:.6f} {p1:.6f} {p2:.6f} {k3:.6f}\n")
+
+print(f"[✓] Saved intrinsics to {intr_file}")

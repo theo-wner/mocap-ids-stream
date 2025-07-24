@@ -15,7 +15,7 @@ from streams.stream_matcher import StreamMatcher
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
     cam_stream = IDSStream(frame_rate='max', 
-                           exposure_time=20000, 
+                           exposure_time=10000, 
                            white_balance='auto',
                            gain='auto',
                            gamma=1.0,
