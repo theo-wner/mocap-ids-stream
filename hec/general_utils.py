@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-import itertools
 
 def filter_poses(dataset_path):
     """
@@ -28,29 +27,48 @@ def filter_poses(dataset_path):
 
 def read_poses(filename):
     """
-    Reads poses from a COLMAP-style pose file and saves them to a dictionary with the corresponding image_id as key and a 4x4 homogenous matrix as value.
+    Reads poses from a COLMAP-style pose file and returnes them as lists of rotation matrices and translation vectors.
     """
-    poses = {}
+    rotations = []
+    translations = []
     with open(filename, 'r') as f:
         for line in f:
             if line.startswith('#') or line.strip() == '' or line.startswith('IMAGE_ID'):
                 continue
             parts = line.strip().split()
-            image_id = parts[0]
             qw, qx, qy, qz = map(float, parts[1:5])
             tx, ty, tz = map(float, parts[5:8])
             rot = R.from_quat([qx, qy, qz, qw]).as_matrix()
-            T = np.eye(4)
-            T[:3, :3] = rot
-            T[:3, 3] = [tx, ty, tz]
-            poses[image_id] = T
-    return poses
+            trans = np.array([tx, ty, tz])
+            rotations.append(rot)
+            translations.append(trans)
+    return rotations, translations
 
-def rotation_difference_deg(R1, R2):
-    """Returns angular difference between two rotation matrices in degrees."""
-    R_diff = R.from_matrix(R1.T @ R2)
-    return R_diff.magnitude() * 180 / np.pi
+def convert_to_tum(input_path, output_path):
+    """
+    Converts a COLMAP-style pose file into a TUM-style Trajectory file for evalutaion with evo.
+    """
+    with open(input_path, 'r') as f:
+        lines = f.readlines()
 
-def translation_difference(t1, t2):
-    """Euclidean distance between translation vectors."""
-    return np.linalg.norm(t1 - t2)
+    tum_lines = []
+    for idx, line in enumerate(lines):
+        if line.strip().startswith('IMAGE_ID') or not line.strip():
+            continue  # Skip header or empty lines
+
+        tokens = line.strip().split()
+        if len(tokens) < 8:
+            continue  # Skip malformed lines
+
+        image_id = int(tokens[0])
+        qw, qx, qy, qz = map(float, tokens[1:5])
+        tx, ty, tz = map(float, tokens[5:8])
+
+        tum_line = f"{idx:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {qw:.6f}"
+        tum_lines.append(tum_line)
+
+    with open(output_path, 'w') as f:
+        f.write("\n".join(tum_lines))
+        f.write("\n")
+
+    print(f"Converted {len(tum_lines)} poses to TUM format in: {output_path}")

@@ -6,27 +6,38 @@ Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 
-import numpy as np
 from .NatNetSDK import NatNetClient
 from datetime import timedelta
 from collections import deque
 import time
-from scipy.spatial.transform import Rotation as R, RotationSpline
-from scipy.interpolate import CubicSpline
-import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 class MoCapStream:
     """
     A class to stream motion capture data from a NatNet server.
     """
 
-    def __init__(self, client_ip, server_ip, rigid_body_id, buffer_size):
+    def __init__(self, client_ip, server_ip, rigid_body_id, buffer_size, calib_dir=None):
         # Member variables to control the streaming
         self.client_ip = client_ip
         self.server_ip = server_ip
         self.rigid_body_id = rigid_body_id
         self.buffer_size = buffer_size
+
+        # Calibration data
+        if calib_dir is not None:
+            # Intrinsics
+            with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
+                lines = f.readlines()
+            keys = lines[0].strip().split()
+            values = list(map(float, lines[1].strip().split()))
+            self.intrinsics = dict(zip(keys, values))
+            # Hand-Eye Calibration
+            self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
+        else:
+            self.intrinsics = None
+            self.hand_eye_pose = None
 
         # Member variables to buffer the data
         self.initial_timing_offset = None
@@ -64,17 +75,28 @@ class MoCapStream:
 
     def rigid_body_listener(self, rigid_body_id, position, rotation, marker_error, tracking_valid):
         if rigid_body_id == self.rigid_body_id:
-            
             # Apply timing offset if set
             if self.initial_timing_offset is not None:
                 timestamp = self.timestamp - self.initial_timing_offset
             else:
                 timestamp = self.timestamp
 
+            # Create a 4x4 pose matrix
+            pose = np.eye(4)
+            pose[:3, :3] = R.from_quat(rotation, scalar_first=False).as_matrix()
+            pose[:3, 3] = position
+
+            # Apply Hand-Eye Calibration if available
+            if self.hand_eye_pose is not None:
+                pose = self.hand_eye_pose @ np.linalg.inv(pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+                position = pose[:3, 3]
+                rotation = R.from_matrix(pose[:3, :3]).as_quat(scalar_first=False)
+
             self.pose_buffer.append({
                 'rigid_body_pose': {
                     'position': list(position),
                     'rotation': list(rotation),
+                    'pose_matrix': pose.tolist()
                     },
                 'timestamp': timestamp,
                 'mean_error': marker_error,

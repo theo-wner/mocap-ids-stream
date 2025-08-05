@@ -59,36 +59,6 @@ def run_colmap(dataset_path):
         check=True
     )
 
-def convert_to_tum(input_path, output_path):
-    """
-    Converts a COLMAP-style pose file into a TUM-style Trajectory file for evalutaion with evo.
-    """
-    with open(input_path, 'r') as f:
-        lines = f.readlines()
-
-    tum_lines = []
-    for idx, line in enumerate(lines):
-        if line.strip().startswith('IMAGE_ID') or not line.strip():
-            continue  # Skip header or empty lines
-
-        tokens = line.strip().split()
-        if len(tokens) < 8:
-            continue  # Skip malformed lines
-
-        image_id = int(tokens[0])
-        qw, qx, qy, qz = map(float, tokens[1:5])
-        tx, ty, tz = map(float, tokens[5:8])
-
-        tum_line = f"{idx:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {qw:.6f}"
-        tum_lines.append(tum_line)
-
-    with open(output_path, 'w') as f:
-        f.write("\n".join(tum_lines))
-        f.write("\n")
-
-    print(f"Converted {len(tum_lines)} poses to TUM format in: {output_path}")
-
-
 def compute_scale_factor(mocap_poses, colmap_poses):
     """
     Computes the scale factor between the metric MoCap poses and the unknown-scaled COLMAP poses.
