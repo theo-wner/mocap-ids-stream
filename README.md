@@ -167,9 +167,10 @@ All images are saved inside the `/images` subdirectory. You can now delete the o
 
 3. Execute `perform_calib`:
 This script first performs an OpenCV-based camera calibration, saving all image poses under `checkerboard_poses.txt` and the calculated intrinsics under `intrinsics.txt`
-Sequentially, the HEC is performed using pairs of MoCap poses and checkerboard-based poses. The calculated hand-eye-pose is then saved to `hand_eye_pose.txt`
+Sequentially, the OpenCV-based HEC is performed using pairs of MoCap poses and checkerboard-based poses. The calculated hand-eye-pose is then saved to `hand_eye_pose.txt`
 
-Now the calibration process is completed and the path to the calibration directory can be passed to a StreamMatcher-Object, which then automatically applies the hand-eye-pose to the MoCap poses it returnes in the `getnext`-function:
+Now the calibration process is completed and the path to the calibration directory can be passed to a StreamMatcher-Object, which then automatically applies the hand-eye-pose to the MoCap poses it returnes in the `getnext`-function. 
+You can either specify the path to the calibration dataset directly or pass `latest` to use the latest calibration.
 ```python
 matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest')
 ```
