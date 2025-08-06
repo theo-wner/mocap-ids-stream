@@ -2,9 +2,9 @@
 
 This repository provides a framework for capturing and processing camera and motion capture data using the IDS U3-31J0CP camera and the OptiTrack Motive software. 
 It includes the classes `IDSStream` and `MoCapStream` for handling IDS camera and OptiTrack motion capture data streams.
+Additionally it includes the class `StreamMatcher` for handling simultaneous capture of both streams.
 This is aimed towards the application of connecting a camera to a rigid body, trackable with a motion capture system.
-For determining the relative Pose between the Camera Coordinate System and the Rigid Body Coordinate System, this repository features functionality for performing a Hand-Eye-Calibration (HEC).
-Also, it contains scripts for capture visualization, capturing datasets suitable for COLMAP, checking time synchronization, and verifying frame rates.
+For determining the intrinsics of the camera as well as relative Pose between the Camera Coordinate System and the Rigid Body Coordinate System, this repository features functionality for performing a Camera Calibration and a Hand-Eye-Calibration (HEC).
 
 ## Prerequisites
 Both the IDSStream and MoCapStream classes are client classes that require specific SDKs to be installed on your system.
@@ -155,15 +155,21 @@ cam_stream.stop()
 mocap_stream.stop()
 ```
 
-### Example Scripts
-This repository contains several capture scripts that demonstrate how to use the `IDSStream`, `MoCapStream` and `StreamMatcher` classes for various tasks:
-- `visualize_data.py`: Captures data from both the IDS camera and the OptiTrack motion capture system and visualizes the captured data.
-- `capture_dataset.py`: Captures a dataset, including images and corresponding poses.
-It also features debugging scripts useful for testing:
-- `check_time_sync.py`: Checks the time synchronization between the IDS camera and the OptiTrack motion capture system.
-- `check_frame_rate.py`: Verifies the frame rates of both the IDS camera and the OptiTrack motion capture system.
-Example usage:
-```bash
-python -m scripts.capture_data.py
-```
+### Calibration
+In order to directly obtain the Pose of the MoCap Base CS w.r.t. the CCS, the transform between the Rigid Body Coordinate System (hereby referred es Tool Coordinate System, TCS) and the CCS has to be calculated via a Hand-Eye-Calibration (HEC).
+To do that, the intended pipeline in this repository is the follwing:
+1. Execute `capture_calib_dataset`:
+This creates a new directory under `/data`. You can specify its name via the `--name`-flag or not specify the name to obtain a timestamp-based directory name.
+With this script, you can then capture images of an OpenCV-readable chessboard, which can later be used for camera calibration. Additionally, the MoCap poses of all images are saved under `mocap_poses.txt` for the HEC later.
 
+2. Filter out blurry images:
+All images are saved inside the `/images` subdirectory. You can now delete the ones not suitable for the calibration. There is no need to delete the corresponding MoCap poses.
+
+3. Execute `perform_calib`:
+This script first performs an OpenCV-based camera calibration, saving all image poses under `checkerboard_poses.txt` and the calculated intrinsics under `intrinsics.txt`
+Sequentially, the HEC is performed using pairs of MoCap poses and checkerboard-based poses. The calculated hand-eye-pose is then saved to `hand_eye_pose.txt`
+
+Now the calibration process is completed and the path to the calibration directory can be passed to a StreamMatcher-Object, which then automatically applies the hand-eye-pose to the MoCap poses it returnes in the `getnext`-function:
+```python
+matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest')
+```
