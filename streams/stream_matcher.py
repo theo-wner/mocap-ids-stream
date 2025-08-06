@@ -113,7 +113,21 @@ class StreamMatcher():
 
         # Query pose at the camera timestamp
         interpolated_position = np.array([s(query_time) for s in pos_splines])
-        interpolated_rotation = rot_spline(query_time).as_quat(scalar_first=True)
+        interpolated_rotation = rot_spline(query_time).as_quat(scalar_first=False)
+
+        # Apply the Hand-Eye Calibration if available
+        if self.mocap_stream.hand_eye_pose is not None:
+            # Convert the pose to a 4x4 transformation matrix
+            interpolated_pose = np.eye(4)
+            interpolated_pose[:3, :3] = R.from_quat(interpolated_rotation, scalar_first=False).as_matrix()
+            interpolated_pose[:3, 3] = interpolated_position
+
+            # Apply the Hand-Eye Calibration
+            interpolated_pose = self.mocap_stream.hand_eye_pose @ np.linalg.inv(interpolated_pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+
+            # Extract the new position and rotation
+            interpolated_position = interpolated_pose[:3, 3]
+            interpolated_rotation = R.from_matrix(interpolated_pose[:3, :3]).as_quat(scalar_first=False)
 
         # Query velocities at the camera timestamp
         interpolated_linear_velocity_vec = np.array([s(query_time, 1) for s in pos_splines])
@@ -123,7 +137,7 @@ class StreamMatcher():
         interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
 
         # Create return dict
-        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation}
+        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation, 'pose_matrix' : interpolated_pose}
         pose_velocity = {'pos' : interpolated_lateral_velocity, 'rot' : interpolated_angular_velocity}
         info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity}
         if return_tensor:

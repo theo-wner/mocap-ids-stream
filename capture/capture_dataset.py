@@ -86,7 +86,7 @@ def capture_dataset(stream_matcher, output_dir, mode):
                 image_name = f"{img_idx:04d}.png"
                 cv2.imwrite(os.path.join(images_dir, image_name), frame)
                 poses_file.write(
-                    f"{img_idx} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} {rot[3]:.6f} "
+                    f"{img_idx} {rot[3]:.6f} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} "
                     f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} {image_name}\n"
                 )
                 poses_file.flush()

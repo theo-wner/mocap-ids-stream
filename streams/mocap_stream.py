@@ -81,22 +81,10 @@ class MoCapStream:
             else:
                 timestamp = self.timestamp
 
-            # Create a 4x4 pose matrix
-            pose = np.eye(4)
-            pose[:3, :3] = R.from_quat(rotation, scalar_first=False).as_matrix()
-            pose[:3, 3] = position
-
-            # Apply Hand-Eye Calibration if available
-            if self.hand_eye_pose is not None:
-                pose = self.hand_eye_pose @ np.linalg.inv(pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
-                position = pose[:3, 3]
-                rotation = R.from_matrix(pose[:3, :3]).as_quat(scalar_first=False)
-
             self.pose_buffer.append({
                 'rigid_body_pose': {
                     'position': list(position),
                     'rotation': list(rotation),
-                    'pose_matrix': pose.tolist()
                     },
                 'timestamp': timestamp,
                 'mean_error': marker_error,

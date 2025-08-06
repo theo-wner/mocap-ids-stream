@@ -45,6 +45,9 @@ if __name__ == "__main__":
                 pos = info['pose']['pos']
                 rot = info['pose']['rot']
                 print(f"Pose: Position {pos}, Rotation {rot}")
+                # Print rotation in Euler angles
+                euler_angles = R.from_quat(rot, scalar_first=False).as_euler('xyz', degrees=True)
+                print(f"Euler angles: {euler_angles}")
                 v_trans = info['pose_velocity']['pos']
                 v_rot = info['pose_velocity']['rot']
                 print(f"Linear velocity: {v_trans:.2f} m/s, Angular velocity: {v_rot:.2f} rad/s")
