@@ -25,10 +25,9 @@ if __name__ == "__main__":
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
-                               buffer_size=15,
-                               calib_dir="./data/hec_checkerboard")
+                               buffer_size=15)
     
-    matcher = StreamMatcher(cam_stream, mocap_stream, 10)
+    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest')
     matcher.start_timing()
 
     # Capture Loop
@@ -44,13 +43,9 @@ if __name__ == "__main__":
             if info['is_valid']:
                 pos = info['pose']['pos']
                 rot = info['pose']['rot']
-                print(f"Pose: Position {pos}, Rotation {rot}")
-                # Print rotation in Euler angles
                 euler_angles = R.from_quat(rot, scalar_first=False).as_euler('xyz', degrees=True)
+                print(f"Position: {pos}")
                 print(f"Euler angles: {euler_angles}")
-                v_trans = info['pose_velocity']['pos']
-                v_rot = info['pose_velocity']['rot']
-                print(f"Linear velocity: {v_trans:.2f} m/s, Angular velocity: {v_rot:.2f} rad/s")
             else:
                 print("No valid pose")
         elif key == ord('q'):

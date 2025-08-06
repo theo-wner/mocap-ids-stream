@@ -10,17 +10,21 @@ import cv2
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
 from streams.stream_matcher import StreamMatcher
-import time
 
-def capture_dataset(stream_matcher, output_dir, mode):
+def capture_dataset(stream_matcher, dataset_path, mode):
     """
     This function captures frames from the camera and motion capture data in a loop.
     Whenever a pose satisfies the "saving-conditions", it saves the current frame and pose to a file.
+
+    Args:
+        stream_matcher (StreamMatcher): The stream matcher object that synchronizes camera and motion capture data.
+        dataset_path (str): The path where the dataset will be saved.
+        mode (str): The mode of capturing, either 'auto' or 'manually'.
     """
     # Create Directory
-    output_dir = get_unique_path(output_dir)
-    images_dir = os.path.join(output_dir, "images")
-    poses_path = os.path.join(output_dir, "mocap_poses.txt")
+    dataset_path = get_unique_path(dataset_path)
+    images_dir = os.path.join(dataset_path, "images")
+    poses_path = os.path.join(dataset_path, "mocap_poses.txt")
     os.makedirs(images_dir)
 
     # Set thresholds for auto capture mode
@@ -106,26 +110,3 @@ def get_unique_path(base_path):
         if not os.path.exists(new_path):
             return new_path
         counter += 1
-
-if __name__ == "__main__":
-    # Initialize camera and motion capture streams
-    cam_stream = IDSStream(frame_rate='max', 
-                           exposure_time=10000, 
-                           white_balance='auto',
-                           gain='auto',
-                           gamma=1.0,
-                           resize=None)
-    
-    mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
-                               server_ip="172.22.147.182", 
-                               rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
-                               buffer_size=15)
-    
-    matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10)
-    matcher.start_timing()
-
-    capture_dataset(matcher, output_dir='data/hec_checkerboard', mode='auto')
-
-    matcher.stop()
-    cam_stream.stop()
-    mocap_stream.stop()

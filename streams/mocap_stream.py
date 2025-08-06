@@ -18,26 +18,12 @@ class MoCapStream:
     A class to stream motion capture data from a NatNet server.
     """
 
-    def __init__(self, client_ip, server_ip, rigid_body_id, buffer_size, calib_dir=None):
+    def __init__(self, client_ip, server_ip, rigid_body_id, buffer_size):
         # Member variables to control the streaming
         self.client_ip = client_ip
         self.server_ip = server_ip
         self.rigid_body_id = rigid_body_id
         self.buffer_size = buffer_size
-
-        # Calibration data
-        if calib_dir is not None:
-            # Intrinsics
-            with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
-                lines = f.readlines()
-            keys = lines[0].strip().split()
-            values = list(map(float, lines[1].strip().split()))
-            self.intrinsics = dict(zip(keys, values))
-            # Hand-Eye Calibration
-            self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
-        else:
-            self.intrinsics = None
-            self.hand_eye_pose = None
 
         # Member variables to buffer the data
         self.initial_timing_offset = None

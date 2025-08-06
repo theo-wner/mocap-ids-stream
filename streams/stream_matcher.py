@@ -8,6 +8,7 @@ import numpy as np
 import threading
 import time
 import torch
+import os
 from scipy.spatial.transform import Rotation as R, RotationSpline
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
@@ -17,7 +18,27 @@ class StreamMatcher():
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, resync_interval):
+    def __init__(self, ids_stream, mocap_stream, resync_interval, calib_dir=None):
+        # Calibration data
+        if calib_dir is None:
+            self.intrinsics = None
+            self.hand_eye_pose = None
+            print("No calibration directory provided. Intrinsics and Hand-Eye Calibration will not be applied.")
+        else:
+            if calib_dir == 'latest':
+                calib_dir = sorted([d for d in os.listdir('./data/') if d.startswith('calibration_')], reverse=True)[0]
+                calib_dir = os.path.join('./data/', calib_dir)
+                print(f"Using latest calibration directory: {calib_dir}")
+            # Intrinsics
+            with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
+                lines = f.readlines()
+            keys = lines[0].strip().split()
+            values = list(map(float, lines[1].strip().split()))
+            self.intrinsics = dict(zip(keys, values))
+            # Hand-Eye Calibration
+            self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
+
+        # Streams
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
         self.resync_interval = resync_interval
@@ -115,15 +136,15 @@ class StreamMatcher():
         interpolated_position = np.array([s(query_time) for s in pos_splines])
         interpolated_rotation = rot_spline(query_time).as_quat(scalar_first=False)
 
+        # Convert the pose to a 4x4 transformation matrix
+        interpolated_pose = np.eye(4)
+        interpolated_pose[:3, :3] = R.from_quat(interpolated_rotation, scalar_first=False).as_matrix()
+        interpolated_pose[:3, 3] = interpolated_position
+        
         # Apply the Hand-Eye Calibration if available
-        if self.mocap_stream.hand_eye_pose is not None:
-            # Convert the pose to a 4x4 transformation matrix
-            interpolated_pose = np.eye(4)
-            interpolated_pose[:3, :3] = R.from_quat(interpolated_rotation, scalar_first=False).as_matrix()
-            interpolated_pose[:3, 3] = interpolated_position
-
+        if self.hand_eye_pose is not None:
             # Apply the Hand-Eye Calibration
-            interpolated_pose = self.mocap_stream.hand_eye_pose @ np.linalg.inv(interpolated_pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+            interpolated_pose = self.hand_eye_pose @ np.linalg.inv(interpolated_pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
 
             # Extract the new position and rotation
             interpolated_position = interpolated_pose[:3, 3]

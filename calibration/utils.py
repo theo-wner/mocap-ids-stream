@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
 from packaging import version
+from scipy.spatial.transform import Rotation as R
+import os
 
-def findChessboardCorners(image, chessboard, visualize=False):
+def findChessboardCorners(image, chessboard):
     """
     Wrapper function for the OpenCV-Function findChessboardCornersSB() found at: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#gadc5bcb05cb21cf1e50963df26986d7c9
     Simplifies the usage of above function by directly returning unique IDs for each corner based on the used chessboard.
@@ -99,19 +101,47 @@ def get_corner_ids(meta, chessboard):
     ids = paddded_ids[padded_meta != 9]
     return ids
 
-if __name__ == '__main__':
-    # Load image
-    image = cv2.imread('./data/chessboard/IMG_1502.JPG')
+def filter_poses(dataset_path):
+    """
+    Deletes MoCap poses that have no corresponding image in /images
+    """
+    mocap_path = os.path.join(dataset_path, "mocap_poses.txt")
+    images_dir = os.path.join(dataset_path, "images")
+    existing_images = set(os.listdir(images_dir))
 
-    # Define Chessboard --> Information in description of findChessboardCorners
-    chessboard = {'num_corners_down' : 23,
-                  'num_corners_right' : 16,
-                  'origin_marker_pos_down' : 10,
-                  'origin_marker_pos_right' : 7}
-    
-    # Find corners
-    retval, corners, ids = findChessboardCorners(image, chessboard, visualize=True)
+    with open(mocap_path, 'r') as f:
+        lines = f.readlines()
 
+    with open(mocap_path, 'w') as out_f:
+        for line in lines:
+            if line.startswith('#') or line.strip() == '' or line.startswith('IMAGE_ID'):
+                out_f.write(line)
+                continue
+
+            parts = line.strip().split()
+
+            image_name = parts[8]
+            if image_name in existing_images:
+                out_f.write(line)
+
+def read_poses(filename):
+    """
+    Reads poses from a COLMAP-style pose file and returnes them as lists of rotation matrices and translation vectors.
+    """
+    rotations = []
+    translations = []
+    with open(filename, 'r') as f:
+        for line in f:
+            if line.startswith('#') or line.strip() == '' or line.startswith('IMAGE_ID'):
+                continue
+            parts = line.strip().split()
+            qw, qx, qy, qz = map(float, parts[1:5])
+            tx, ty, tz = map(float, parts[5:8])
+            rot = R.from_quat([qx, qy, qz, qw]).as_matrix()
+            trans = np.array([tx, ty, tz])
+            rotations.append(rot)
+            translations.append(trans)
+    return rotations, translations
 
 
 
