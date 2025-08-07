@@ -160,8 +160,10 @@ class StreamMatcher():
         # Create return dict
         pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation, 'Rt' : interpolated_pose}
         pose_velocity = {'pos' : interpolated_lateral_velocity, 'rot' : interpolated_angular_velocity}
-        info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity, 'Rt' : interpolated_pose, 'focal' : self.intrinsics['FX']} # Rt and focal are for usage in the onthely_nvs repo
-        if return_tensor:
+        info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity}
+
+        # For the repo onthefly_nvs we want to have the pose as 4x4 Matrix and the focal length provided, and all as tensors
+        if return_tensor: 
             frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
             info['Rt'] = torch.from_numpy(interpolated_pose).float().cuda()
             info['focal'] = torch.tensor(np.array([self.intrinsics['FX']])).float().cuda()
