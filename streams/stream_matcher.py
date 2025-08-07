@@ -30,9 +30,6 @@ class StreamMatcher():
                 calib_dir = os.path.join('./data/', calib_dir)
                 print(f"Using latest calibration directory: {calib_dir}")
 
-            # Make sure calib dir is the relative path to where the script calling this is located
-            calib_dir = os.path.join(os.path.dirname(__file__), '..', calib_dir)
-
             # Intrinsics
             with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
                 lines = f.readlines()
@@ -129,7 +126,7 @@ class StreamMatcher():
                 frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
                 info['Rt'] = None
                 info['focal'] = torch.tensor(np.array([self.intrinsics['FX']])).float().cuda()
-                info['is_test'] = True
+                info['is_test'] = False
             return frame, info
         
         # Extract times, positions, and rotations from the buffer
