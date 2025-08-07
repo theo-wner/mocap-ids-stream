@@ -29,6 +29,10 @@ class StreamMatcher():
                 calib_dir = sorted([d for d in os.listdir('./data/') if d.startswith('calibration_')], reverse=True)[0]
                 calib_dir = os.path.join('./data/', calib_dir)
                 print(f"Using latest calibration directory: {calib_dir}")
+
+            # Make sure calib dir is the relative path to where the script calling this is located
+            calib_dir = os.path.join(os.path.dirname(__file__), '..', calib_dir)
+
             # Intrinsics
             with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
                 lines = f.readlines()
@@ -44,6 +48,13 @@ class StreamMatcher():
         self.resync_interval = resync_interval
         self.resync_thread = threading.Thread(target=self.resync_loop, daemon=True)
         self.running = True
+
+    def __len__(self):
+        # Arbitrary large number as we don't know the length of a stream
+        return 100_000_000  
+    
+    def get_image_size(self):
+        return self.ids_stream.get_image_size()
 
     def start_timing(self):
         self.ids_stream.start_timing()
