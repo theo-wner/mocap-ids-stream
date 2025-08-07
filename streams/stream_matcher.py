@@ -158,11 +158,13 @@ class StreamMatcher():
         interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
 
         # Create return dict
-        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation, 'pose_matrix' : interpolated_pose}
+        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation, 'Rt' : interpolated_pose}
         pose_velocity = {'pos' : interpolated_lateral_velocity, 'rot' : interpolated_angular_velocity}
-        info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity}
+        info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity, 'Rt' : interpolated_pose, 'focal' : self.intrinsics['FX']} # Rt and focal are for usage in the onthely_nvs repo
         if return_tensor:
             frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
+            info['Rt'] = torch.from_numpy(interpolated_pose).float().cuda()
+            info['focal'] = torch.tensor(np.array([self.intrinsics['FX']])).float().cuda()
 
         # Plotting for debugging (optional)
         if show_plot:

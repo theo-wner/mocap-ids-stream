@@ -39,13 +39,9 @@ if __name__ == "__main__":
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
             print("Picture taken! Waiting for enough mocap poses after acquisition...")
-            frame, info = matcher.getnext(for_image=(frame, info), show_plot=True)
+            frame, info = matcher.getnext(for_image=(frame, info), show_plot=True, return_tensor=True)
             if info['is_valid']:
-                pos = info['pose']['pos']
-                rot = info['pose']['rot']
-                euler_angles = R.from_quat(rot, scalar_first=False).as_euler('xyz', degrees=True)
-                print(f"Position: {pos}")
-                print(f"Euler angles: {euler_angles}")
+                print(info)
             else:
                 print("No valid pose")
         elif key == ord('q'):
