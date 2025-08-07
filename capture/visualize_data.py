@@ -35,6 +35,7 @@ if __name__ == "__main__":
     while True:
         frame, info = cam_stream.getnext(return_tensor=False)
         if frame is not None:
+            frame = cv2.resize(frame, (1000, 1000))
             cv2.imshow("Camera", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
