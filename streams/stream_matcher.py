@@ -124,8 +124,13 @@ class StreamMatcher():
         after_count = sum(t > query_time for t in times)
         if before_count < 2 or after_count < 2:
             info = {'is_valid' : False, 'pose' : None, 'pose_velocity' : None}
+
+            # For the repo onthefly_nvs we have to modify the info dict
             if return_tensor:
                 frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
+                info['Rt'] = None
+                info['focal'] = torch.tensor(np.array([self.intrinsics['FX']])).float().cuda()
+                info['is_test'] = True
             return frame, info
         
         # Extract times, positions, and rotations from the buffer
