@@ -65,9 +65,9 @@ class StreamMatcher():
     def resync_loop(self):
         while self.running:
             time.sleep(self.resync_interval)
-            #print("Resyncronizing timestamps")
-            #self.ids_stream.resync_timing()
-            #self.mocap_stream.resync_timing()
+            print("Resyncronizing timestamps")
+            self.ids_stream.resync_timing()
+            self.mocap_stream.resync_timing()
             
     def wait_for_n_poses(self, n):
         """
