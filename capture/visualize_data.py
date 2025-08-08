@@ -19,15 +19,14 @@ if __name__ == "__main__":
                            exposure_time='auto', 
                            white_balance='auto',
                            gain='auto',
-                           gamma=1.5,
-                           downsampling=None) 
+                           gamma=1.5) 
     
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=15)
     
-    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest')
+    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest', downsampling=2)
     matcher.start_timing()
 
     # Capture Loop

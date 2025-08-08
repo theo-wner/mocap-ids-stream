@@ -36,6 +36,14 @@ class StreamMatcher():
             keys = lines[0].strip().split()
             values = list(map(float, lines[1].strip().split()))
             self.intrinsics = dict(zip(keys, values))
+
+            # Scale the first 4 intrinsics values (fx, fy, cx, cy) by the downsampling factor if provided
+            if downsampling is not None:
+                self.intrinsics['FX'] /= downsampling
+                self.intrinsics['FY'] /= downsampling
+                self.intrinsics['CX'] /= downsampling
+                self.intrinsics['CY'] /= downsampling
+
             # Hand-Eye Calibration
             self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
 
