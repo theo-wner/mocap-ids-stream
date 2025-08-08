@@ -65,8 +65,8 @@ class StreamMatcher():
         if self.downsampling is None:
             return self.ids_stream.get_image_size()
         else:
-            width, height = self.ids_stream.get_image_size()
-            return (width // self.downsampling, height // self.downsampling) 
+            height, width = self.ids_stream.get_image_size()
+            return (height // self.downsampling, width // self.downsampling) 
 
     def start_timing(self):
         self.ids_stream.start_timing()

@@ -189,7 +189,9 @@ class IDSStream:
     
     def get_image_size(self):
         frame = self.getnext()[0]
-        return frame.shape[-2], frame.shape[-1]
+        height = frame.shape[1]
+        width = frame.shape[2]
+        return height, width
 
     def stop(self):
         self.running = False

@@ -29,7 +29,7 @@ if __name__ == "__main__":
     matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest', downsampling=2)
     matcher.start_timing()
 
-    print(matcher.get_image_size())
+    #print(matcher.get_image_size())
     # Capture Loop
     print("Press 'c' to capture and match, or 'q' to quit.")
     while True:
