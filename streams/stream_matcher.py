@@ -62,7 +62,11 @@ class StreamMatcher():
         return 100_000_000  
     
     def get_image_size(self):
-        return self.ids_stream.get_image_size()
+        if self.downsampling is None:
+            return self.ids_stream.get_image_size()
+        else:
+            width, height = self.ids_stream.get_image_size()
+            return (width // self.downsampling, height // self.downsampling) 
 
     def start_timing(self):
         self.ids_stream.start_timing()
@@ -117,7 +121,7 @@ class StreamMatcher():
         
         # Downsample the image
         if self.downsampling is not None:
-                frame = cv2.resize(frame, (0, 0), fx=1/self.downsampling, fy=1/self.downsampling, interpolation=cv2.INTER_AREA)
+            frame = cv2.resize(frame, (0, 0), fx=1/self.downsampling, fy=1/self.downsampling, interpolation=cv2.INTER_AREA)
 
         query_time = info['timestamp'].total_seconds()
         self.wait_for_n_poses(self.mocap_stream.buffer_size // 2) # Ensure the buffer has enough poses to match
