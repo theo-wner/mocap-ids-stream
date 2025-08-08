@@ -68,7 +68,15 @@ def perform_camera_calibration(dataset_path):
     cv2.destroyAllWindows()
 
     # Calibrate
-    repr_error, camera_matrix, distortion, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    # onthefly_nvs requires a SIMPLE_PINHOLE Calibration: Only Parameter is the focal length --> Disable every other parameter
+    flags = (cv2.CALIB_FIX_ASPECT_RATIO | # Considers only fy as a free parameter, fx is the same
+        cv2.CALIB_FIX_PRINCIPAL_POINT | # Principal point is not changed during the global optimization and stays at the center 
+        cv2.CALIB_ZERO_TANGENT_DIST | # Tangential distortion coefficients (p1, p2) are set to zeros
+        cv2.CALIB_FIX_K1 | # Corresponding radial distortion coefficient is not changed during the optimization and set to zero.
+        cv2.CALIB_FIX_K2 |
+        cv2.CALIB_FIX_K3) 
+    
+    repr_error, camera_matrix, distortion, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None, flags=flags)
     print(f"[✓] Camera calibration completed with reprojection error: {repr_error:.4f} px")
 
     # Save poses
