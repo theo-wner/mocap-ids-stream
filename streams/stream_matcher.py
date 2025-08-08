@@ -9,6 +9,7 @@ import threading
 import time
 import torch
 import os
+import cv2
 from scipy.spatial.transform import Rotation as R, RotationSpline
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
@@ -19,6 +20,12 @@ class StreamMatcher():
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
     def __init__(self, ids_stream, mocap_stream, resync_interval, calib_dir=None, downsampling=None):
+        # Streams
+        self.ids_stream = ids_stream
+        self.mocap_stream = mocap_stream
+        self.resync_interval = resync_interval
+        self.downsampling = downsampling
+
         # Calibration data
         if calib_dir is None:
             self.intrinsics = None
@@ -38,7 +45,7 @@ class StreamMatcher():
             self.intrinsics = dict(zip(keys, values))
 
             # Scale the first 4 intrinsics values (fx, fy, cx, cy) by the downsampling factor if provided
-            if downsampling is not None:
+            if self.downsampling is not None:
                 self.intrinsics['FX'] /= downsampling
                 self.intrinsics['FY'] /= downsampling
                 self.intrinsics['CX'] /= downsampling
@@ -47,10 +54,6 @@ class StreamMatcher():
             # Hand-Eye Calibration
             self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
 
-        # Streams
-        self.ids_stream = ids_stream
-        self.mocap_stream = mocap_stream
-        self.resync_interval = resync_interval
         self.resync_thread = threading.Thread(target=self.resync_loop, daemon=True)
         self.running = True
 
@@ -111,6 +114,11 @@ class StreamMatcher():
             frame, info = for_image
         else:
             raise ValueError("for_image has to be a tuple of type (frame, info)")
+        
+        # Downsample the image
+        if self.downsampling is not None:
+                frame = cv2.resize(frame, (0, 0), fx=1/self.downsampling, fy=1/self.downsampling, interpolation=cv2.INTER_AREA)
+
         query_time = info['timestamp'].total_seconds()
         self.wait_for_n_poses(self.mocap_stream.buffer_size // 2) # Ensure the buffer has enough poses to match
         current_buffer = self.mocap_stream.get_current_buffer() # Get the current buffer of mocap data
