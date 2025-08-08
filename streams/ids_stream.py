@@ -19,14 +19,14 @@ class IDSStream:
     A class to stream images from an IDS camera in the background.
     """
 
-    def __init__(self, frame_rate, exposure_time, white_balance, gain, gamma, resize):
+    def __init__(self, frame_rate, exposure_time, white_balance, gain, gamma, downsampling=None):
         # Member variables to control the streaming
         self.frame_rate = frame_rate
         self.exposure_time = exposure_time
         self.white_balance = white_balance
         self.gain = gain
         self.gamma = gamma
-        self.resize = resize
+        self.downsampling = downsampling
 
         # Member variables to store the latest data
         self.initial_timing_offset = None
@@ -145,8 +145,8 @@ class IDSStream:
                     frame = ids_peak_ipl_extension.BufferToImage(buffer)
                     frame = frame.get_numpy_2D()
                     frame = cv2.cvtColor(frame, cv2.COLOR_BAYER_BG2BGR) # Convert Bayer pattern to BGR format
-                    if self.resize:
-                        frame = cv2.resize(frame, self.resize, interpolation=cv2.INTER_LINEAR)
+                    if self.downsampling:
+                        frame = cv2.resize(frame, None, fx=self.downsampling, fy=self.downsampling, interpolation=cv2.INTER_LINEAR)
                     self.frame = frame
 
                     # Process timestamp

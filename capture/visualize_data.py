@@ -20,7 +20,7 @@ if __name__ == "__main__":
                            white_balance='auto',
                            gain='auto',
                            gamma=1.5,
-                           resize=None)
+                           downsampling=None) 
     
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
