@@ -26,21 +26,20 @@ if __name__ == "__main__":
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=15)
     
-    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest', downsampling=2)
+    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest', downsampling=None)
     matcher.start_timing()
 
-    #print(matcher.get_image_size())
     # Capture Loop
     print("Press 'c' to capture and match, or 'q' to quit.")
     while True:
-        frame, info = cam_stream.getnext(return_tensor=False)
+        frame, info = cam_stream.getnext()
         if frame is not None:
             frame = cv2.resize(frame, (1000, 1000))
             cv2.imshow("Camera", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('c'):
             print("Picture taken! Waiting for enough mocap poses after acquisition...")
-            frame, info = matcher.getnext(for_image=(frame, info), show_plot=True, return_tensor=True)
+            frame, info = matcher.getnext(for_image=(frame, info), show_plot=True)
             if info['is_valid']:
                 print(info)
             else:

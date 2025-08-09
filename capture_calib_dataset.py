@@ -34,8 +34,7 @@ cam_stream = IDSStream(frame_rate='max',
                         exposure_time='auto', 
                         white_balance='auto',
                         gain='auto',
-                        gamma=1.0,
-                        resize=None)
+                        gamma=1.0)
 
 mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                             server_ip="172.22.147.182", 
@@ -56,4 +55,4 @@ mocap_stream.stop()
 print(f"Dataset captured and saved to {dataset_path}")
 print("You can now use the captured data for camera- and hand-eye calibration using the script 'perform_calibration.py'.")
 print("Make now sure to check the captured images and delete any that are not suitable for calibration (e.g., blurry images).")
-print("The script 'perform_calibration.py' will then automatically delete all poses that do not have a corresponding image.")
+print("The script 'perform_calib.py' will then automatically delete all poses that do not have a corresponding image.")

@@ -177,14 +177,12 @@ class IDSStream:
             ids_peak.Library.Close()
             print("Camera stream stopped.")
     
-    def getnext(self, return_tensor=True):
+    def getnext(self):
         """
         Returns the next frame and its metadata.
         """    
         frame = self.frame.copy()
         info = self.info.copy()
-        if return_tensor:
-            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
         return frame, info
     
     def get_image_size(self):

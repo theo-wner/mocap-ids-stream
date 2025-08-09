@@ -40,7 +40,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
         while True:
             # Get Stream data
-            frame, info = stream_matcher.getnext(return_tensor=False)
+            frame, info = stream_matcher.getnext(return_tensor=False, show_plot=False)
             valid_pose = info['is_valid']
 
             if not valid_pose:

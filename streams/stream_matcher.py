@@ -25,35 +25,43 @@ class StreamMatcher():
         self.mocap_stream = mocap_stream
         self.resync_interval = resync_interval
         self.downsampling = downsampling
-
-        # Calibration data
-        if calib_dir is None:
-            self.intrinsics = None
-            self.hand_eye_pose = None
-            print("No calibration directory provided. Intrinsics and Hand-Eye Calibration will not be applied.")
-        else:
+        
+        # Set calibration if provided
+        if calib_dir is not None:
             if calib_dir == 'latest':
-                calib_dir = sorted([d for d in os.listdir('./data/') if d.startswith('calibration_')], reverse=True)[0]
-                calib_dir = os.path.join('./data/', calib_dir)
+                repo_root = os.path.dirname(os.path.dirname(__file__))
+                data_dir = os.path.join(repo_root, 'data')
+                calib_dir = sorted([d for d in os.listdir(data_dir) if d.startswith('calibration_')], reverse=True)[0]
+                calib_dir = os.path.join(data_dir, calib_dir)
                 print(f"Using latest calibration directory: {calib_dir}")
 
             # Intrinsics
             with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
                 lines = f.readlines()
-            keys = lines[0].strip().split()
-            values = list(map(float, lines[1].strip().split()))
+            keys = lines[5].strip().split() # FULL_OPENCV
+            values = list(map(float, lines[6].strip().split()))
             self.intrinsics = dict(zip(keys, values))
 
-            # Scale the first 4 intrinsics values (fx, fy, cx, cy) by the downsampling factor if provided
+            focal = lines[2].strip()  # SIMPLE_PINHOLE
+            self.intrinsics['FOCAL'] = float(focal)
+
             if self.downsampling is not None:
                 self.intrinsics['FX'] /= downsampling
                 self.intrinsics['FY'] /= downsampling
                 self.intrinsics['CX'] /= downsampling
                 self.intrinsics['CY'] /= downsampling
+                self.intrinsics['FOCAL'] /= downsampling
 
             # Hand-Eye Calibration
             self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
 
+        # Set calibration to None if not provided
+        else:
+            self.intrinsics = None
+            self.hand_eye_pose = None
+            print("No calibration directory provided. Intrinsics and Hand-Eye Calibration will not be applied.")
+
+        # Start resync thread
         self.resync_thread = threading.Thread(target=self.resync_loop, daemon=True)
         self.running = True
 
@@ -95,33 +103,39 @@ class StreamMatcher():
             time.sleep(0.001)
 
 
-    def getnext(self, return_tensor=True, for_image=None, show_plot=False):
+    def getnext(self, for_image=None, return_tensor=True, show_plot=False):
         """
-        Returns the current frame together with its corresponding pose information
+        Returns the current frame together with its corresponding pose information.
+        Can be directly used as getnext-Function inside the onthefly_nvs repo
 
         Args:
-            - return_tensor (boolean): Determines wheather to return the image frame as pytorch tensor or not
             - for_image (tuple): Optional, if passed, takes image and info as tuple from the argument, if None, retrieves a new image from ids_stream 
             - show_plot (boolean): Determines wheather to show a plot for pose visulization or not
 
         Returns:
-            - frame (numpy.ndarray): The image
+            - frame (torch.Tensor): The captured frame from the IDS Camera Stream, downsampled if specified
             - info (dict): Dictionary containing the pose info
                 - keys:
                     - is_valid (boolean): Shows if the interpolated pose is valid
                     - pose (dict): The interpolated pose by the timestamp of image retrieval
                     - pose_velocitiy (dict): The interpolated pose velocities by the timestamp of image retrieval
+                    - Rt (torch.Tensor): The 4x4 transformation matrix of the pose --> needed for onthefly_nvs
+                    - focal (torch.Tensor): The focal length of the camera, if available --> needed for onthefly_nvs
+                    - is_test (boolean): Indicates if the pose is a test pose --> needed for onthefly_nvs
         """
+        # Check if for_image is provided, if not, get the next frame from the IDS stream
         if for_image is None:
-            frame, info = self.ids_stream.getnext(return_tensor=False)
+            frame, info = self.ids_stream.getnext()
         elif isinstance(for_image, tuple):
             frame, info = for_image
-        else:
-            raise ValueError("for_image has to be a tuple of type (frame, info)")
         
         # Downsample the image
         if self.downsampling is not None:
             frame = cv2.resize(frame, (0, 0), fx=1/self.downsampling, fy=1/self.downsampling, interpolation=cv2.INTER_AREA)
+
+        # Convert to torch tensor
+        if return_tensor:
+            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
 
         query_time = info['timestamp'].total_seconds()
         self.wait_for_n_poses(self.mocap_stream.buffer_size // 2) # Ensure the buffer has enough poses to match
@@ -139,14 +153,12 @@ class StreamMatcher():
         before_count = sum(t < query_time for t in times)
         after_count = sum(t > query_time for t in times)
         if before_count < 2 or after_count < 2:
-            info = {'is_valid' : False, 'pose' : None, 'pose_velocity' : None}
-
-            # For the repo onthefly_nvs we have to modify the info dict
-            if return_tensor:
-                frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
-                info['Rt'] = None
-                info['focal'] = torch.tensor(np.array([self.intrinsics['FX']])).float().cuda()
-                info['is_test'] = False
+            info = {'is_valid' : False, 
+                    'pose' : None, 
+                    'pose_velocity' : None, 
+                    'Rt' : None, 
+                    'focal' : None,
+                    'is_test' : False}
             return frame, info
         
         # Extract times, positions, and rotations from the buffer
@@ -168,6 +180,13 @@ class StreamMatcher():
         interpolated_position = np.array([s(query_time) for s in pos_splines])
         interpolated_rotation = rot_spline(query_time).as_quat(scalar_first=False)
 
+        # Query velocities at the camera timestamp
+        interpolated_linear_velocity_vec = np.array([s(query_time, 1) for s in pos_splines])
+        interpolated_lateral_velocity = np.linalg.norm(interpolated_linear_velocity_vec)
+
+        interpolated_angular_velocity_vec = rot_spline(query_time, 1)
+        interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
+
         # Convert the pose to a 4x4 transformation matrix
         interpolated_pose = np.eye(4)
         interpolated_pose[:3, :3] = R.from_quat(interpolated_rotation, scalar_first=False).as_matrix()
@@ -182,24 +201,20 @@ class StreamMatcher():
             interpolated_position = interpolated_pose[:3, 3]
             interpolated_rotation = R.from_matrix(interpolated_pose[:3, :3]).as_quat(scalar_first=False)
 
-        # Query velocities at the camera timestamp
-        interpolated_linear_velocity_vec = np.array([s(query_time, 1) for s in pos_splines])
-        interpolated_lateral_velocity = np.linalg.norm(interpolated_linear_velocity_vec)
-
-        interpolated_angular_velocity_vec = rot_spline(query_time, 1)
-        interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
-
         # Create return dict
-        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation, 'Rt' : interpolated_pose}
+        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation}
         pose_velocity = {'pos' : interpolated_lateral_velocity, 'rot' : interpolated_angular_velocity}
-        info = {'is_valid' : True, 'pose' : pose, 'pose_velocity' : pose_velocity}
-
-        # For the repo onthefly_nvs we have to modify the info dict
-        if return_tensor: 
-            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
-            info['Rt'] = torch.from_numpy(interpolated_pose).float().cuda()
-            info['focal'] = torch.tensor(np.array([self.intrinsics['FX']])).float().cuda()
-            info['is_test'] = False
+        Rt = interpolated_pose
+        focal = self.intrinsics['FOCAL'] if self.intrinsics is not None else None
+        if return_tensor:
+            Rt = torch.from_numpy(Rt).float().cuda()
+            focal = torch.from_numpy(np.array(focal)).float().cuda()
+        info = {'is_valid' : True, 
+                'pose' : pose, 
+                'pose_velocity' : pose_velocity,
+                'Rt' : Rt,
+                'focal' : focal,
+                'is_test' : False}
 
         # Plotting for debugging (optional)
         if show_plot:
