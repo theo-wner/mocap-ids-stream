@@ -41,7 +41,7 @@ mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 17
                             rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                             buffer_size=15)
 
-matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10, calib_dir=None) # No calib_dir because for hand-eye calibration we need the raw MoCap poses
+matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=1, calib_base_path=None, calib_run=None) # No calib because for hand-eye calibration we need the raw MoCap poses
 matcher.start_timing()
 
 # Capture dataset
