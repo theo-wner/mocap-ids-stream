@@ -19,7 +19,7 @@ class StreamMatcher():
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, resync_interval, calib_dir=None, downsampling=None):
+    def __init__(self, ids_stream, mocap_stream, resync_interval, calib_base_path=None, calib_run=None, downsampling=None):
         # Streams
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
@@ -27,13 +27,14 @@ class StreamMatcher():
         self.downsampling = downsampling
         
         # Set calibration if provided
-        if calib_dir is not None:
-            if calib_dir == 'latest':
-                repo_root = os.path.dirname(os.path.dirname(__file__))
-                data_dir = os.path.join(repo_root, 'data')
-                calib_dir = sorted([d for d in os.listdir(data_dir) if d.startswith('calibration_')], reverse=True)[0]
-                calib_dir = os.path.join(data_dir, calib_dir)
+        if calib_base_path is not None:
+            if calib_run == 'latest':
+                calib_run = sorted([d for d in os.listdir(calib_base_path) if d.startswith('calibration_')], reverse=True)[0]
+                calib_dir = os.path.join(calib_base_path, calib_run)
                 print(f"Using latest calibration directory: {calib_dir}")
+            else:
+                calib_dir = os.path.join(calib_base_path, calib_run)
+                print(f"Using specified calibration directory: {calib_dir}")
 
             # Intrinsics
             with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
