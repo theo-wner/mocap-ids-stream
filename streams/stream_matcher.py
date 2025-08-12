@@ -209,7 +209,7 @@ class StreamMatcher():
         focal = self.intrinsics['FOCAL'] if self.intrinsics is not None else None
         if return_tensor:
             Rt = torch.from_numpy(Rt).float().cuda()
-            focal = torch.Tensor(focal).unsqueeze(0).cuda() if focal is not None else None
+            focal = torch.from_numpy(np.array(focal)).float().unsqueeze(0).cuda() if focal is not None else None
         info = {'is_valid' : True, 
                 'pose' : pose, 
                 'pose_velocity' : pose_velocity,
