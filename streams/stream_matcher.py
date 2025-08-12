@@ -24,7 +24,7 @@ class StreamMatcher():
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
         self.resync_interval = resync_interval
-        self.print_on_resync
+        self.print_on_resync = print_on_resync
         self.downsampling = downsampling
         
         # Set calibration if provided
