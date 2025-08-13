@@ -57,9 +57,11 @@ class StreamMatcher():
             # Hand-Eye Calibration
             self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
             # Modify the translation part for debugging:
-            self.hand_eye_pose[0, 3] += 10  # Shift X translation
-            self.hand_eye_pose[1, 3] += 10  # Shift Y translation
-            self.hand_eye_pose[2, 3] += 10  # Shift Z translation
+            #self.hand_eye_pose[0, 3] += 10  # Shift X translation
+            #self.hand_eye_pose[1, 3] += 10  # Shift Y translation
+            #self.hand_eye_pose[2, 3] += 10  # Shift Z translation
+            # Make the rotation part an identity matrix
+            self.hand_eye_pose[:3, :3] = np.eye(3)
 
         # Set calibration to None if not provided
         else:
