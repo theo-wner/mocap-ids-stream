@@ -16,9 +16,9 @@ from scipy.spatial.transform import Rotation as R
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
     cam_stream = IDSStream(frame_rate='max', 
-                           exposure_time='auto', 
-                           white_balance='auto',
-                           gain='auto',
+                           exposure_time=30000, 
+                           white_balance='off',
+                           gain='default',
                            gamma=1.5) 
     
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop

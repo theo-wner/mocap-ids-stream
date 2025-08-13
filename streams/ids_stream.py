@@ -104,6 +104,8 @@ class IDSStream:
             # Gain --> similar to ISO
             if self.gain == 'auto':
                 remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Continuous")
+            elif self.gain == 'default':
+                remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Off")
             elif self.gain == 'manually':
                 remote_nodemap.FindNode("GainAuto").SetCurrentEntry("Off")
                 manual_gains = {"DigitalRed": 1.0, "DigitalGreen": 1.0, "DigitalBlue": 1.0}
