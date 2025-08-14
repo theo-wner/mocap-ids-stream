@@ -138,6 +138,7 @@ class StreamMatcher():
 
         # Convert to torch tensor
         if return_tensor:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
 
         query_time = info['timestamp'].total_seconds()
