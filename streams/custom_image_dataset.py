@@ -10,7 +10,7 @@ import os
 import cv2
 from scipy.spatial.transform import Rotation as R
 
-class CustomImageDatset():
+class CustomImageDataset():
     """
     A class representing a dataset previously captured with the mocap-ids setup.
     """
