@@ -77,6 +77,9 @@ class StreamMatcher():
         else:
             height, width = self.ids_stream.get_image_size()
             return (height // self.downsampling, width // self.downsampling) 
+        
+    def get_focal(self):
+        return self.intrinsics['FOCAL'] if self.intrinsics else None
 
     def start_timing(self):
         self.ids_stream.start_timing()
@@ -104,7 +107,6 @@ class StreamMatcher():
             buffer = self.mocap_stream.get_current_buffer()
             seen_ids.update(id(pose) for pose in buffer)
             time.sleep(0.001)
-
 
     def getnext(self, for_image=None, return_tensor=True, show_plot=False):
         """
