@@ -16,10 +16,10 @@ from scipy.spatial.transform import Rotation as R
 if __name__ == "__main__":
     # Initialize camera and motion capture streams
     cam_stream = IDSStream(frame_rate='max', 
-                           exposure_time=30000, 
-                           white_balance='off',
-                           gain='default',
-                           gamma=1.5) 
+                            exposure_time='auto', 
+                            white_balance='auto',
+                            gain='auto',
+                            gamma=1.0)
     
     mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 172 for laptop
                                server_ip="172.22.147.182", 
@@ -28,8 +28,6 @@ if __name__ == "__main__":
     
     matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_base_path="/home/tkapler/mocap-ids-stream/data", calib_run='latest', downsampling=None)
     matcher.start_timing()
-
-    print(matcher.get_image_size())
 
     # Capture Loop
     print("Press 'c' to capture and match, or 'q' to quit.")

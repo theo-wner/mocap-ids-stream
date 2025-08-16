@@ -38,24 +38,22 @@ class StreamMatcher():
                 print(f"Using specified calibration directory: {calib_dir}")
 
             # Intrinsics
-            with open(f'{calib_dir}/intrinsics.txt', 'r') as f:
-                lines = f.readlines()
-            keys = lines[5].strip().split() # FULL_OPENCV
-            values = list(map(float, lines[6].strip().split()))
-            self.intrinsics = dict(zip(keys, values))
+            with open(f"{calib_dir}/sparse/0/cameras.txt", "r") as f:
+                for line in f:
+                    if line.startswith("1 PINHOLE"):
+                        line = line.strip().split(" ")
+                        fx = float(line[4])
+                        fy = float(line[5])
 
-            focal = lines[2].strip()  # SIMPLE_PINHOLE
-            self.intrinsics['FOCAL'] = float(focal)
+            self.intrinsics = {"FOCAL" : (fx + fy) / 2}
 
             if self.downsampling is not None:
-                self.intrinsics['FX'] /= downsampling
-                self.intrinsics['FY'] /= downsampling
-                self.intrinsics['CX'] /= downsampling
-                self.intrinsics['CY'] /= downsampling
-                self.intrinsics['FOCAL'] /= downsampling
+                self.intrinsics["FOCAL"] /= downsampling
 
             # Hand-Eye Calibration
-            self.hand_eye_pose = np.loadtxt(f'{calib_dir}/hand_eye_pose.txt')
+            self.hand_eye_pose = np.loadtxt(f"{calib_dir}/sparse/0/hand_eye_pose.txt")
+
+            print(self.intrinsics)
 
         # Set calibration to None if not provided
         else:
