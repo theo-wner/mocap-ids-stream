@@ -81,11 +81,11 @@ def perform_camera_calibration(dataset_path):
     w, h = gray.shape[::-1]
     num_images = len(imgpoints)
     repr_error_o, camera_matrix_o, distortion_o, rvecs_o, tvecs_o = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_opencv)
-    print(f"[✓] Camera calibration (FULL_OPENCV) completed with reprojection error: {repr_error_o:.4f} px.")
+    print(f"[✓] Camera calibration (OPENCV) completed with reprojection error: {repr_error_o:.4f} px.")
 
     # Calibrate with SIMPLE_PINHOLE model for retrieval onthefly_nvs-fitting calibration
     repr_error_p, camera_matrix_p, distortion_p, rvecs_p, tvecs_p = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_pinhole)
-    print(f"[✓] Camera calibration (SIMPLE_PINHOLE) completed with reprojection error: {repr_error_p:.4f} px.")
+    print(f"[✓] Camera calibration (PINHOLE) completed with reprojection error: {repr_error_p:.4f} px.")
 
     # Save poses (from OPENCV-calibration)
     pose_file = os.path.join(dataset_path, "sparse", "0", "images_checkerboard.txt")
