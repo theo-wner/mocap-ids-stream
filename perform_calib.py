@@ -13,9 +13,11 @@ Author:
 """
 import argparse
 import os
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 from calibration.utils import filter_poses
 from calibration.camera_calibration import perform_camera_calibration
-from calibration.hand_eye_calibration import perform_hand_eye_calibration
+from calibration.hand_eye_calibration import perform_hand_eye_calibration, apply_hand_eye_transform
 
 # Get dataset name from command line argument or use the one with the latest timestamp as default
 parser = argparse.ArgumentParser(description="Calibration Script")
@@ -40,3 +42,7 @@ perform_camera_calibration(dataset_path)
 # Perform hand-eye calibration
 print("Performing hand-eye calibration...")
 perform_hand_eye_calibration(dataset_path)
+
+# Apply the Hand-Eye-Pose to the MoCap poses to recieve
+print("Applying Hand-Eye-Pose to MoCap poses...")
+apply_hand_eye_transform(dataset_path)

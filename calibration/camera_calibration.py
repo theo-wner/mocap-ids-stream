@@ -94,7 +94,7 @@ def perform_camera_calibration(dataset_path):
         f.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n")
         f.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
         f.write(f"# Number of images: {num_images}, mean observations per image: 0\n")
-        f.write(f"# These poses have been computed using the OPENCV calibration, therefore CAMERA_ID is set to 2")
+        f.write(f"# These poses have been computed using the OPENCV calibration, therefore CAMERA_ID is set to 2\n")
         for i, (rvec, tvec) in enumerate(zip(rvecs_o, tvecs_o)):
             # Convert rotation vector to quaternion
             rotmat, _ = cv2.Rodrigues(rvec)
@@ -106,7 +106,7 @@ def perform_camera_calibration(dataset_path):
             image_name = sorted(os.listdir(image_folder))[i]
             image_idx = int(image_name.split('.')[0])
 
-            f.write(f"\n{image_idx} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} 2 {image_name}\n")
+            f.write(f"{image_idx} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} 2 {image_name}\n\n")
 
     print(f"[✓] Saved poses to {pose_file}")
 

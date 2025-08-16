@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import os
 from calibration.utils import read_poses
 from scipy.spatial.transform import Rotation as R
 
@@ -34,3 +35,50 @@ def perform_hand_eye_calibration(dataset_path):
     print(f"[✓] Saved Hand-Eye-Pose to {dataset_path}/sparse/0/hand_eye_pose.txt")
     # To retrieve the desired Base-to-Camera Transformation Matrices, perform:
     # T_base2cam = T_tool2cam @ T_base2tool -> Position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+
+def apply_hand_eye_transform(dataset_path):
+    """
+    Applies the Hand-Eye-Transform to the MoCap poses and saves the corrected poses to the images.txt file.
+
+    Args:
+        dataset_path (str): The path where the dataset is saved, which contains mocap poses (images_mocap.txt) and the Hand-Eye-Pose (hand_eye_pose.txt).
+    """
+    hand_eye_pose = np.loadtxt(f"{dataset_path}/sparse/0/hand_eye_pose.txt")
+
+    with open(f"{dataset_path}/sparse/0/images_mocap.txt", "r") as f:
+        lines = f.readlines()
+
+    with open(f"{dataset_path}/sparse/0/images.txt", "w") as out_f:
+        for line in lines:
+            if line.startswith("#") or line.strip() == "":
+                out_f.write(line)
+                continue
+
+            line = line.strip().split(" ")
+            img_id = line[0]
+            qw, qx, qy, qz, tx, ty, tz = [float(comp) for comp in line[1:8]]
+            cam_id = line[8]
+            name = line[9]
+
+            pose = np.eye(4)
+            pose[:3, :3] = R.from_quat((qx, qy, qz, qw), scalar_first=False).as_matrix()
+            pose[:3, 3] = np.array([tx, ty, tz])
+
+            # Apply Hand-Eye-Transform
+            pose = hand_eye_pose @ np.linalg.inv(pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+
+            qx, qy, qz, qw = R.from_matrix(pose[:3, :3]).as_quat(scalar_first=False)
+            tx, ty, tz = pose[:3, 3]
+
+            out_f.write(f"{img_id} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {cam_id} {name}\n")
+
+    # Update the header
+    with open(f"{dataset_path}/sparse/0/images.txt", "r") as f:
+        content = f.read()
+
+    updated_content = content.replace(", therefore CAMERA_ID is set to 0", " and corrected by a Hand-Eye-Transform. Therefore CAMERA_ID is set to 0")
+
+    with open(f"{dataset_path}/sparse/0/images.txt", "w") as f:
+        f.write(updated_content)
+
+    print(f"[✓] Applied Hand-Eye-Transform to MoCap poses and saved corrected poses to {dataset_path}/sparse/0/images.txt")
