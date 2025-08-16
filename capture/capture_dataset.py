@@ -7,9 +7,6 @@ Author:
 
 import os
 import cv2
-from streams.ids_stream import IDSStream
-from streams.mocap_stream import MoCapStream
-from streams.stream_matcher import StreamMatcher
 
 def capture_dataset(stream_matcher, dataset_path, mode):
     """
@@ -21,11 +18,15 @@ def capture_dataset(stream_matcher, dataset_path, mode):
         dataset_path (str): The path where the dataset will be saved.
         mode (str): The mode of capturing, either 'auto' or 'manually'.
     """
-    # Create Directory
+    # Create Directories 
     dataset_path = get_unique_path(dataset_path)
+
     images_dir = os.path.join(dataset_path, "images")
-    poses_path = os.path.join(dataset_path, "mocap_poses.txt")
     os.makedirs(images_dir)
+
+    poses_dir = os.path.join(dataset_path, "sparse", "0")
+    os.makedirs(poses_dir)
+    poses_path = os.path.join(poses_dir, "images_mocap.txt")
 
     # Set thresholds for auto capture mode
     min_dist = 0.1 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
@@ -34,7 +35,11 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
     with open(poses_path, "w") as poses_file:
         print("Capturing colmap dataset. Press 'q' to quit.")
-        poses_file.write("IMAGE_ID QW QX QY QZ TX TY TZ IMAGE_NAME\n")
+        poses_file.write("# Image list with two lines of data per image:\n")
+        poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n")
+        poses_file.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
+        poses_file.write("# Number of images: PLACEHOLDER, mean observations per image: 0\n")
+        poses_file.write("# These poses have been captured with a MoCap system, therefore CAMERA_ID is set to 0")
         img_idx = 0
         last_saved_pos = None  # Track last saved position
 
@@ -90,8 +95,8 @@ def capture_dataset(stream_matcher, dataset_path, mode):
                 image_name = f"{img_idx:04d}.png"
                 cv2.imwrite(os.path.join(images_dir, image_name), frame)
                 poses_file.write(
-                    f"{img_idx} {rot[3]:.6f} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} "
-                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} {image_name}\n"
+                    f"\n{img_idx} {rot[3]:.6f} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} "
+                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 0 {image_name}\n"
                 )
                 poses_file.flush()
                 print(f"Captured {image_name}")
@@ -100,7 +105,16 @@ def capture_dataset(stream_matcher, dataset_path, mode):
                 last_saved_pos = pos
 
     cv2.destroyAllWindows()
+    
+    # Update the header with the correct number of images
+    with open(poses_path, "r") as f:
+        content = f.read()
 
+    updated_content = content.replace("PLACEHOLDER", f"{img_idx}")
+    
+    with open(poses_path, "w") as f:
+        f.write(updated_content)
+    
 def get_unique_path(base_path):
     if not os.path.exists(base_path):
         return base_path

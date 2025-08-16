@@ -67,28 +67,35 @@ def perform_camera_calibration(dataset_path):
 
     cv2.destroyAllWindows()
 
-    # Calibrate
-    # onthefly_nvs requires a SIMPLE_PINHOLE Calibration: Only Parameter is the focal length --> Disable every other parameter
-    flags = (cv2.CALIB_FIX_ASPECT_RATIO | # Considers only fy as a free parameter, fx is the same
-        cv2.CALIB_FIX_PRINCIPAL_POINT | # Principal point is not changed during the global optimization and stays at the center 
+    # Calibrate flags for OPENCV camera model
+    flags_opencv = (cv2.CALIB_FIX_K3) # Coefficient k3 is not changed during the optimization.
+
+    # Calibrate flags for PINHOLE camera model 
+    flags_pinhole = (cv2.CALIB_FIX_PRINCIPAL_POINT | # Principal point is not changed during the global optimization and stays at the center 
         cv2.CALIB_ZERO_TANGENT_DIST | # Tangential distortion_fo coefficients (p1, p2) are set to zeros
         cv2.CALIB_FIX_K1 | # Corresponding radial distortion_fo coefficient is not changed during the optimization and set to zero.
         cv2.CALIB_FIX_K2 |
         cv2.CALIB_FIX_K3) 
     
     # Calibrate with FULL_OPENCV model for accurate pose estimation
-    repr_error_fo, camera_matrix_fo, distortion_fo, rvecs_fo, tvecs_fo = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None, flags=None)
-    print(f"[✓] Camera calibration (FULL_OPENCV) completed with reprojection error: {repr_error_fo:.4f} px.")
+    w, h = gray.shape[::-1]
+    num_images = len(imgpoints)
+    repr_error_o, camera_matrix_o, distortion_o, rvecs_o, tvecs_o = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_opencv)
+    print(f"[✓] Camera calibration (FULL_OPENCV) completed with reprojection error: {repr_error_o:.4f} px.")
 
     # Calibrate with SIMPLE_PINHOLE model for retrieval onthefly_nvs-fitting calibration
-    repr_error_sp, camera_matrix_sp, distortion_sp, rvecs_sp, tvecs_sp = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None, flags=flags)
-    print(f"[✓] Camera calibration (SIMPLE_PINHOLE) completed with reprojection error: {repr_error_sp:.4f} px.")
+    repr_error_p, camera_matrix_p, distortion_p, rvecs_p, tvecs_p = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_pinhole)
+    print(f"[✓] Camera calibration (SIMPLE_PINHOLE) completed with reprojection error: {repr_error_p:.4f} px.")
 
-    # Save poses (from FULL_OPENCV-calibration)
-    pose_file = os.path.join(dataset_path, 'checkerboard_poses.txt')
+    # Save poses (from OPENCV-calibration)
+    pose_file = os.path.join(dataset_path, "sparse", "0", "images_checkerboard.txt")
     with open(pose_file, 'w') as f:
-        f.write("IMAGE_ID QW QX QY QZ TX TY TZ IMAGE_NAME\n")
-        for i, (rvec, tvec) in enumerate(zip(rvecs_fo, tvecs_fo)):
+        f.write("# Image list with two lines of data per image:\n")
+        f.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n")
+        f.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
+        f.write(f"# Number of images: {num_images}, mean observations per image: 0\n")
+        f.write(f"# These poses have been computed using the OPENCV calibration, therefore CAMERA_ID is set to 2")
+        for i, (rvec, tvec) in enumerate(zip(rvecs_o, tvecs_o)):
             # Convert rotation vector to quaternion
             rotmat, _ = cv2.Rodrigues(rvec)
             quat = R.from_matrix(rotmat).as_quat()  # [x, y, z, w]
@@ -99,25 +106,31 @@ def perform_camera_calibration(dataset_path):
             image_name = sorted(os.listdir(image_folder))[i]
             image_idx = int(image_name.split('.')[0])
 
-            f.write(f"{image_idx} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {image_name}\n")
+            f.write(f"\n{image_idx} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} 2 {image_name}\n")
 
     print(f"[✓] Saved poses to {pose_file}")
 
-    # Save intrinsics (FULL_OPENCV as well as SIMPLE_PINHOLE)
-    intr_file = os.path.join(dataset_path, 'intrinsics.txt')
-    focal = camera_matrix_sp[0, 0]
-    fx = camera_matrix_fo[0, 0]
-    fy = camera_matrix_fo[1, 1]
-    cx = camera_matrix_fo[0, 2]
-    cy = camera_matrix_fo[1, 2]
-    k1, k2, p1, p2, k3 = distortion_fo.ravel()[:5]  # Assumes only 5 distortion_fo coefficients
+    # Save intrinsics (OPENCV as well as PINHOLE)
+    intr_file = os.path.join(dataset_path, "sparse", "0", "cameras.txt")
+    fx_o = camera_matrix_o[0, 0]
+    fy_o = camera_matrix_o[1, 1]
+    cx_o = camera_matrix_o[0, 2]
+    cy_o = camera_matrix_o[1, 2]
+    fx_p = camera_matrix_p[0, 0]
+    fy_p = camera_matrix_p[1, 1]
+    cx_p = camera_matrix_p[0, 2]
+    cy_p = camera_matrix_p[1, 2]
+    
+    k1, k2, p1, p2 = distortion_o.ravel()[:4]  # Assumes only 4 distortion_o coefficients
 
     with open(intr_file, 'w') as f:
-        f.write("SIMPLE_PINHOLE\n")
-        f.write("FOCAL\n")
-        f.write(f"{focal:.6f}\n\n")
-        f.write("FULL_OPENCV\n")
-        f.write("FX FY CX CY K1 K2 P1 P2 K3\n")
-        f.write(f"{fx:.6f} {fy:.6f} {cx:.6f} {cy:.6f} {k1:.6f} {k2:.6f} {p1:.6f} {p2:.6f} {k3:.6f}\n")
+        f.write("# Camera list with one line of data per camera:\n")
+        f.write("#   CAMERA_ID, MODEL, w, h, PARAMS[]\n")
+        f.write("# Number of cameras: 2\n")
+        f.write("# PARAMS for PINHOLE are: w, h, fx, fy, cx, cy\n")
+        f.write("# PARAMS for OPENCV are: w, h, fx, fy, cx, cy, k1, k2, p1, p2\n")
+        f.write(f"1 PINHOLE {w} {h} {fx_p:.6f} {fy_p:.6f} {cx_p:.6f} {cy_p:.6f}\n")
+        f.write(f"2 OPENCV {w} {h} {fx_o:.6f} {fy_o:.6f} {cx_o:.6f} {cy_o:.6f} {k1:.6f} {k2:.6f} {p1:.6f} {p2:.6f}\n")
 
     print(f"[✓] Saved intrinsics to {intr_file}")
+    
