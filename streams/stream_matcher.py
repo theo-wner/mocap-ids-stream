@@ -53,8 +53,6 @@ class StreamMatcher():
             # Hand-Eye Calibration
             self.hand_eye_pose = np.loadtxt(f"{calib_dir}/sparse/0/hand_eye_pose.txt")
 
-            print(self.intrinsics)
-
         # Set calibration to None if not provided
         else:
             self.intrinsics = None
