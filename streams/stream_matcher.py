@@ -19,7 +19,7 @@ class StreamMatcher():
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, resync_interval, print_on_resync=False, calib_base_path=None, calib_run=None, downsampling=None):
+    def __init__(self, ids_stream, mocap_stream, resync_interval, print_on_resync=False, calib_path=None, downsampling=None):
         # Streams
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
@@ -28,17 +28,16 @@ class StreamMatcher():
         self.downsampling = downsampling
         
         # Set calibration if provided
-        if calib_base_path is not None:
-            if calib_run == 'latest':
-                calib_run = sorted([d for d in os.listdir(calib_base_path) if d.startswith('calibration_')], reverse=True)[0]
-                calib_dir = os.path.join(calib_base_path, calib_run)
-                print(f"Using latest calibration directory: {calib_dir}")
+        if calib_path is not None:
+            if calib_path == "latest":
+                calib_run = sorted([d for d in os.listdir("./data/calibrations/") if d.startswith('calibration_')], reverse=True)[0]
+                calib_path = os.path.join("./data/calibrations/", calib_run)
+                print(f"Using latest calibration directory: {calib_path}")
             else:
-                calib_dir = os.path.join(calib_base_path, calib_run)
-                print(f"Using specified calibration directory: {calib_dir}")
+                print(f"Using specified calibration directory: {calib_path}")
 
             # Intrinsics
-            with open(f"{calib_dir}/sparse/0/cameras.txt", "r") as f:
+            with open(f"{calib_path}/sparse/0/cameras.txt", "r") as f:
                 for line in f:
                     if line.startswith("1 PINHOLE"):
                         line = line.strip().split(" ")
@@ -51,7 +50,7 @@ class StreamMatcher():
                 self.intrinsics["FOCAL"] /= downsampling
 
             # Hand-Eye Calibration
-            self.hand_eye_pose = np.loadtxt(f"{calib_dir}/sparse/0/hand_eye_pose.txt")
+            self.hand_eye_pose = np.loadtxt(f"{calib_path}/sparse/0/hand_eye_pose.txt")
 
         # Set calibration to None if not provided
         else:

@@ -26,7 +26,11 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
     poses_dir = os.path.join(dataset_path, "sparse", "0")
     os.makedirs(poses_dir)
-    poses_path = os.path.join(poses_dir, "images_mocap.txt")
+    poses_path = os.path.join(poses_dir, "images.txt")
+
+    points3D_path = os.path.join(poses_dir, "points3D.txt") # Dummy file
+    with open(points3D_path, "w") as f:
+        pass
 
     # Set thresholds for auto capture mode
     min_dist = 0.1 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
@@ -34,7 +38,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
     max_v_rot = 0.015 # Threshold for the maximal allowed rotational velocity (rad/s)
 
     with open(poses_path, "w") as poses_file:
-        print("Capturing colmap dataset. Press 'q' to quit.")
+        print("Capturing dataset. Press 'q' to quit.")
         poses_file.write("# Image list with two lines of data per image:\n")
         poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n")
         poses_file.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
