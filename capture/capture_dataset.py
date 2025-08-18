@@ -43,7 +43,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
         poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n")
         poses_file.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
         poses_file.write("# Number of images: PLACEHOLDER, mean observations per image: 0\n")
-        poses_file.write("# These poses have been captured with a MoCap system, therefore CAMERA_ID is set to 0\n")
+        poses_file.write("# These poses have been captured with a MoCap system\n")
         img_idx = 0
         last_saved_pos = None  # Track last saved position
 
@@ -100,7 +100,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
                 cv2.imwrite(os.path.join(images_dir, image_name), frame)
                 poses_file.write(
                     f"{img_idx} {rot[3]:.6f} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} "
-                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 0 {image_name}\n\n"
+                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 1 {image_name}\n\n"
                 )
                 poses_file.flush()
                 print(f"Captured {image_name}")

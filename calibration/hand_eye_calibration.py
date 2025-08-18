@@ -72,13 +72,4 @@ def apply_hand_eye_transform(dataset_path):
 
             out_f.write(f"{img_id} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} 1 {name}\n")
 
-    # Update the header
-    with open(f"{dataset_path}/sparse/0/images.txt", "r") as f:
-        content = f.read()
-
-    updated_content = content.replace(", therefore CAMERA_ID is set to 0", " and corrected by a Hand-Eye-Transform.\n# Since on-the-fly-nvs can only work with a PINHOLE camera model, CAMERA_ID is set to 1.")
-
-    with open(f"{dataset_path}/sparse/0/images.txt", "w") as f:
-        f.write(updated_content)
-
     print(f"[✓] Applied Hand-Eye-Transform to MoCap poses and saved corrected poses to {dataset_path}/sparse/0/images.txt")
