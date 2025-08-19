@@ -77,7 +77,7 @@ Additionally, install the [PyTorch version that best fits your system](https://p
 ### Using this repository as a submodule
 To use this repository as a git submodule inside another project, add the submodule and edit .gitmodules (Here, the submodule gets added into a directory called "submodules"):
 ```bash
-git submodule add git@github.com:theo-wner/mocap-ids-stream.git submodules
+git submodule add git@github.com:theo-wner/mocap-ids-stream.git submodules/mocap-ids-stream
 git add .gitmodules submodules
 git commit -m "Add submodule"
 ```
