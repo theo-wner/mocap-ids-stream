@@ -32,13 +32,13 @@ class StreamMatcher():
             if calib_path == "latest":
                 calib_dir = os.path.join(".", "data", "calibrations")
                 calib_run = sorted([d for d in os.listdir(calib_dir) if d.startswith('calibration_')], reverse=True)[0]
-                calib_path = os.path.join(calib_dir, calib_run)
-                print(f"Using latest calibration directory: {calib_path}")
+                self.calib_path = os.path.join(calib_dir, calib_run)
+                print(f"Using latest calibration directory: {self.calib_path}")
             else:
-                print(f"Using specified calibration directory: {calib_path}")
+                print(f"Using specified calibration directory: {self.calib_path}")
 
             # Intrinsics
-            with open(os.path.join(calib_path, "sparse", "0", "cameras.txt"), "r") as f:
+            with open(os.path.join(self.calib_path, "sparse", "0", "cameras.txt"), "r") as f:
                 for line in f:
                     if line.startswith("1 PINHOLE"):
                         line = line.strip().split(" ")
@@ -51,7 +51,7 @@ class StreamMatcher():
                 self.intrinsics["FOCAL"] /= downsampling
 
             # Hand-Eye Calibration
-            self.hand_eye_pose = np.loadtxt(os.path.join(calib_path, "sparse", "0", "hand_eye_pose.txt"))
+            self.hand_eye_pose = np.loadtxt(os.path.join(self.calib_path, "sparse", "0", "hand_eye_pose.txt"))
 
         # Set calibration to None if not provided
         else:
@@ -73,6 +73,9 @@ class StreamMatcher():
         else:
             height, width = self.ids_stream.get_image_size()
             return (height // self.downsampling, width // self.downsampling) 
+        
+    def get_calib_path(self):
+        return self.calib_path
         
     def get_focal(self):
         return self.intrinsics['FOCAL'] if self.intrinsics else None
