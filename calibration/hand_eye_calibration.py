@@ -20,8 +20,8 @@ def perform_hand_eye_calibration(dataset_path):
     # TCS - Tool Coordinate System (defined by rigid body definition in motive)
 
     # Read poses -----------------------------------------------------------------------------
-    R_world2cam, t_world2cam = read_poses(f"{dataset_path}/sparse/0/images_checkerboard.txt") # Position of WCS with respect to CCS <-> performs change of basis from WCS to CCS
-    R_tool2base, t_tool2base = read_poses(f"{dataset_path}/sparse/0/images_mocap.txt") # Position of TCS with respect to BCS <-> performs change of basis from TCS to BCS
+    R_world2cam, t_world2cam = read_poses(os.path.join(dataset_path, "sparse", "0", "images_checkerboard.txt")) # Position of WCS with respect to CCS <-> performs change of basis from WCS to CCS
+    R_tool2base, t_tool2base = read_poses(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt")) # Position of TCS with respect to BCS <-> performs change of basis from TCS to BCS
 
     # Perform OpenCV-based linear Hand-Eye-Calibration ---------------------------------------
     R_cam2tool, t_cam2tool = cv2.calibrateHandEye(R_tool2base, t_tool2base, R_world2cam, t_world2cam, method=cv2.CALIB_HAND_EYE_PARK)
@@ -31,8 +31,8 @@ def perform_hand_eye_calibration(dataset_path):
     T_tool2cam = np.linalg.inv(T_cam2tool) # Hand-Eye-Pose: Position of TCS with respect to CCS <-> performs change of basis from TCS to CCS
 
     # Save Hand-Eye-Pose ---------------------------------------------------------------------
-    np.savetxt(f"{dataset_path}/sparse/0/hand_eye_pose.txt", T_tool2cam, fmt='%.6f')
-    print(f"[✓] Saved Hand-Eye-Pose to {dataset_path}/sparse/0/hand_eye_pose.txt")
+    np.savetxt(os.path.join(dataset_path, "sparse", "0", "hand_eye_pose.txt"), T_tool2cam, fmt='%.6f')
+    print(f"[✓] Saved Hand-Eye-Pose to {os.path.join(dataset_path, "sparse", "0", "hand_eye_pose.txt")}")
     # To retrieve the desired Base-to-Camera Transformation Matrices, perform:
     # T_base2cam = T_tool2cam @ T_base2tool -> Position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
 
@@ -43,12 +43,12 @@ def apply_hand_eye_transform(dataset_path):
     Args:
         dataset_path (str): The path where the dataset is saved, which contains mocap poses (images_mocap.txt) and the Hand-Eye-Pose (hand_eye_pose.txt).
     """
-    hand_eye_pose = np.loadtxt(f"{dataset_path}/sparse/0/hand_eye_pose.txt")
+    hand_eye_pose = np.loadtxt(os.path.join(dataset_path, "sparse", "0", "hand_eye_pose.txt"))
 
-    with open(f"{dataset_path}/sparse/0/images_mocap.txt", "r") as f:
+    with open(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt"), "r") as f:
         lines = f.readlines()
 
-    with open(f"{dataset_path}/sparse/0/images.txt", "w") as out_f:
+    with open(os.path.join(dataset_path, "sparse", "0", "images.txt"), "w") as out_f:
         for line in lines:
             if line.startswith("#") or line.strip() == "":
                 out_f.write(line)
@@ -72,4 +72,4 @@ def apply_hand_eye_transform(dataset_path):
 
             out_f.write(f"{img_id} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} 1 {name}\n")
 
-    print(f"[✓] Applied Hand-Eye-Transform to MoCap poses and saved corrected poses to {dataset_path}/sparse/0/images.txt")
+    print(f"[✓] Applied Hand-Eye-Transform to MoCap poses and saved corrected poses to {os.path.join(dataset_path, "sparse", "0", "images.txt")}")

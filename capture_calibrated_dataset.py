@@ -34,14 +34,16 @@ parser.add_argument("--dataset_path", type=str, default=None, required=True, hel
 args = parser.parse_args()
 
 if args.calib_path == "latest":
-    calib_path = sorted([d for d in os.listdir('./data/calibrations/') if d.startswith('calibration_')], reverse=True)[0]
-    calib_path = os.path.join('./data/calibrations/', calib_path)
+    calib_dir = os.path.join(".", "data", "calibrations")
+    calib_run = sorted([d for d in os.listdir(calib_dir) if d.startswith('calibration_')], reverse=True)[0]
+    calib_path = os.path.join(calib_dir, calib_run)
 else:
     calib_path = f"{args.calib_path}"
 print(f"Using calibration path: {calib_path}")
 
 if args.dataset_path == "default":
-    dataset_path = f"./data/dataset_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    dataset_dir = os.path.join(".", "data")
+    dataset_path = os.path.join(dataset_dir, f"dataset_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
 else:
     dataset_path = f"{args.dataset_path}"
 print(f"Using dataset path: {dataset_path}")

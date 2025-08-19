@@ -30,23 +30,24 @@ parser.add_argument("--calib_path", type=str, default=None, required=True, help=
 args = parser.parse_args()
 
 if args.calib_path == "latest":
-    dataset_path = sorted([d for d in os.listdir('./data/calibrations/') if d.startswith('calibration_')], reverse=True)[0]
-    dataset_path = os.path.join('./data/calibrations', dataset_path)
+    calib_dir = os.path.join(".", "data", "calibrations")
+    calib_run = sorted([d for d in os.listdir(calib_dir) if d.startswith('calibration_')], reverse=True)[0]
+    calib_path = os.path.join(calib_dir, calib_run)
 else:
-    dataset_path = f"{args.calib_path}"
-print(f"Using calibration path: {dataset_path}")
+    calib_path = f"{args.calib_path}"
+print(f"Using calibration path: {calib_path}")
 
 # Ensure that all mocap poses have a corresponding image
-filter_poses(dataset_path)
+filter_poses(calib_path)
 
 # Perform camera calibration
 print("Performing camera calibration...")
-perform_camera_calibration(dataset_path)
+perform_camera_calibration(calib_path)
 
 # Perform hand-eye calibration
 print("Performing hand-eye calibration...")
-perform_hand_eye_calibration(dataset_path)
+perform_hand_eye_calibration(calib_path)
 
 # Apply the Hand-Eye-Pose to the MoCap poses to recieve
 print("Applying Hand-Eye-Pose to MoCap poses...")
-apply_hand_eye_transform(dataset_path)
+apply_hand_eye_transform(calib_path)

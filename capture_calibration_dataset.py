@@ -15,7 +15,7 @@ Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
 import argparse
-
+import os
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
 from streams.stream_matcher import StreamMatcher
@@ -28,10 +28,10 @@ parser.add_argument("--calib_path", type=str, default=None, required=True, help=
 args = parser.parse_args()
 
 if args.calib_path == "default":
-    dataset_path = f"./data/calibrations/calibration_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    calib_path = os.path.join(".", "data", "calibrations", f"calibration_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
 else:
-    dataset_path = f"{args.calib_path}"
-print(f"Using calibration path: {dataset_path}")
+    calib_path = f"{args.calib_path}"
+print(f"Using calibration path: {calib_path}")
 
 # Initialize streams
 cam_stream = IDSStream(frame_rate='max', 
@@ -49,14 +49,14 @@ matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10, calib_path
 matcher.start_timing()
 
 # Capture dataset
-capture_dataset(matcher, dataset_path, mode='auto')
+capture_dataset(matcher, calib_path, mode='auto')
 
 # Stop streams
 matcher.stop()
 cam_stream.stop()
 mocap_stream.stop()
 
-print(f"Dataset captured and saved to {dataset_path}")
+print(f"Dataset captured and saved to {calib_path}")
 print("You can now use the captured data for camera- and hand-eye calibration using the script 'perform_calibration.py'.")
 print("Make now sure to check the captured images and delete any that are not suitable for calibration (e.g., blurry images).")
 print("The script 'perform_calib.py' will then automatically delete all poses that do not have a corresponding image.")
