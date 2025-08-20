@@ -19,9 +19,10 @@ def capture_dataset(stream_matcher, dataset_path, mode):
         mode (str): The mode of capturing, either 'auto' or 'manually'.
     """
     # Create Directories 
-    dataset_path = get_unique_path(dataset_path)
-
-    images_dir = os.path.join(dataset_path, "images")
+    if stream_matcher.get_calib_path == None:
+        images_dir = os.path.join(dataset_path, "images_mocap") # Dir structure in case of capturing a calibration dataset
+    else:
+        images_dir = os.path.join(dataset_path, "images") # Dir structure in case of capturing a normal dataset
     os.makedirs(images_dir)
 
     poses_dir = os.path.join(dataset_path, "sparse", "0")
@@ -118,13 +119,3 @@ def capture_dataset(stream_matcher, dataset_path, mode):
     
     with open(poses_path, "w") as f:
         f.write(updated_content)
-
-def get_unique_path(base_path):
-    if not os.path.exists(base_path):
-        return base_path
-    counter = 1
-    while True:
-        new_path = f"{base_path}_{counter}"
-        if not os.path.exists(new_path):
-            return new_path
-        counter += 1

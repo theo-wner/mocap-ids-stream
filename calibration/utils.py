@@ -105,7 +105,7 @@ def filter_poses(dataset_path):
     """
     Deletes MoCap poses that have no corresponding image in /images
     """
-    mocap_path = os.path.join(dataset_path, "sparse", "0", "images.txt")
+    mocap_path = os.path.join(dataset_path, "sparse", "0", "images_mocap.txt")
     images_dir = os.path.join(dataset_path, "images")
     existing_images = set(os.listdir(images_dir))
 
@@ -127,8 +127,6 @@ def filter_poses(dataset_path):
             if image_name in existing_images:
                 out_f.write(line)
                 out_f.write('\n')  # Add empty line after each valid pose
-
-    os.rename(mocap_path, mocap_path.replace("images.txt", "images_mocap.txt"))
 
 def read_poses(filename):
     """

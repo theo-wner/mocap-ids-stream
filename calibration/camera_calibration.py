@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import cv2
+import pickle
 from scipy.spatial.transform import Rotation as R
 from calibration.utils import findChessboardCorners
 
@@ -66,26 +67,39 @@ def perform_camera_calibration(dataset_path):
             cv2.waitKey(100)
 
     cv2.destroyAllWindows()
-
-    # Calibrate flags for OPENCV camera model
+    
+    # Calibrate with FULL_OPENCV model for accurate pose estimation
+    w, h = gray.shape[::-1]
+    num_images = len(imgpoints)
     flags_opencv = (cv2.CALIB_FIX_K3) # Coefficient k3 is not changed during the optimization.
+    repr_error_o, camera_matrix_o, distortion_o, rvecs_o, tvecs_o = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_opencv)
 
-    # Calibrate flags for PINHOLE camera model 
+    # Calculate custom reprojection error to be sure of the implementation
+    total_error = 0
+    total_points = 0
+    for i in range(len(objpoints)):
+        reprojected_points, _ = cv2.projectPoints(objpoints[i], rvecs_o[i], tvecs_o[i], camera_matrix_o, distortion_o)
+        total_error += np.sum(np.abs(imgpoints[i] - reprojected_points)**2)
+        total_points += len(objpoints[i])
+    mean_error = np.sqrt(total_error / total_points)
+    print(f"[✓] Camera calibration (OPENCV) completed with reprojection error: {mean_error:.4f} px.")
+
+    # Calibrate with SIMPLE_PINHOLE model for retrieval onthefly_nvs-fitting calibration
     flags_pinhole = (cv2.CALIB_FIX_PRINCIPAL_POINT | # Principal point is not changed during the global optimization and stays at the center 
         cv2.CALIB_ZERO_TANGENT_DIST | # Tangential distortion_fo coefficients (p1, p2) are set to zeros
         cv2.CALIB_FIX_K1 | # Corresponding radial distortion_fo coefficient is not changed during the optimization and set to zero.
         cv2.CALIB_FIX_K2 |
         cv2.CALIB_FIX_K3) 
-    
-    # Calibrate with FULL_OPENCV model for accurate pose estimation
-    w, h = gray.shape[::-1]
-    num_images = len(imgpoints)
-    repr_error_o, camera_matrix_o, distortion_o, rvecs_o, tvecs_o = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_opencv)
-    print(f"[✓] Camera calibration (OPENCV) completed with reprojection error: {repr_error_o:.4f} px.")
-
-    # Calibrate with SIMPLE_PINHOLE model for retrieval onthefly_nvs-fitting calibration
     repr_error_p, camera_matrix_p, distortion_p, rvecs_p, tvecs_p = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None, flags=flags_pinhole)
-    print(f"[✓] Camera calibration (PINHOLE) completed with reprojection error: {repr_error_p:.4f} px.")
+    
+    total_error = 0
+    total_points = 0
+    for i in range(len(objpoints)):
+        reprojected_points, _ = cv2.projectPoints(objpoints[i], rvecs_p[i], tvecs_p[i], camera_matrix_p, distortion_p)
+        total_error += np.sum(np.abs(imgpoints[i] - reprojected_points)**2)
+        total_points += len(objpoints[i])
+    mean_error = np.sqrt(total_error / total_points)
+    print(f"[✓] Camera calibration (PINHOLE) completed with reprojection error: {mean_error:.4f} px.")
 
     # Save poses (from OPENCV-calibration)
     pose_file = os.path.join(dataset_path, "sparse", "0", "images_checkerboard.txt")
@@ -133,4 +147,14 @@ def perform_camera_calibration(dataset_path):
         f.write(f"2 OPENCV {w} {h} {fx_o:.6f} {fy_o:.6f} {cx_o:.6f} {cy_o:.6f} {k1:.6f} {k2:.6f} {p1:.6f} {p2:.6f}\n")
 
     print(f"[✓] Saved intrinsics to {intr_file}")
-    
+
+    # Save Calibration results and Object/Image points for the following Hand-Eye-Calibration
+    points_file = os.path.join(dataset_path, "sparse", "0", "checkerboard_points.pkl")
+    points = {
+        "objpoints": objpoints,
+        "imgpoints": imgpoints,
+    }
+    with open(points_file, "wb") as f:
+        pickle.dump(points, f)
+
+    print(f"[✓] Saved visible object points and extracted image points for each image to {points_file}")
