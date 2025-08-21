@@ -19,17 +19,18 @@ class StreamMatcher():
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, resync_interval, print_on_resync=False, calib_path=None, downsampling=None):
+    def __init__(self, ids_stream, mocap_stream, resync_interval, calib_path=None, downsampling=None, print_on_resync=False):
         # Streams
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
         self.resync_interval = resync_interval
+        self.calib_path = calib_path
         self.print_on_resync = print_on_resync
         self.downsampling = downsampling
         
         # Set calibration if provided
-        if calib_path is not None:
-            if calib_path == "latest":
+        if self.calib_path is not None:
+            if self.calib_path == "latest":
                 calib_dir = os.path.join(".", "data", "calibrations")
                 calib_run = sorted([d for d in os.listdir(calib_dir) if d.startswith('calibration_')], reverse=True)[0]
                 self.calib_path = os.path.join(calib_dir, calib_run)

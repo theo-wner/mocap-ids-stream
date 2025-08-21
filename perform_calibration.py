@@ -18,12 +18,10 @@ Author:
 """
 import argparse
 import os
-import numpy as np
-import pickle
 from scipy.spatial.transform import Rotation as R
 from calibration.utils import filter_poses
 from calibration.camera_calibration import perform_camera_calibration
-from calibration.hand_eye_calibration import perform_hand_eye_calibration, perform_robot_world_hand_eye_calibration, apply_hand_eye_transform
+from calibration.hand_eye_calibration import perform_hand_eye_calibration, perform_robot_world_hand_eye_calibration, apply_hand_eye_transform, refine_hand_eye_pose
 
 # Get dataset name from command line argument or use the one with the latest timestamp as default
 parser = argparse.ArgumentParser(description="Calibration Script")
@@ -49,6 +47,10 @@ perform_camera_calibration(calib_path)
 print("Performing hand-eye calibration...")
 perform_robot_world_hand_eye_calibration(calib_path)
 
+# Refine hand-eye calibration
+print("Refining Hand-Eye-Calibration...")
+refine_hand_eye_pose(calib_path)
+
 # Apply the Hand-Eye-Pose to the MoCap poses to recieve
-#print("Applying Hand-Eye-Pose to MoCap poses...")
-#apply_hand_eye_transform(calib_path)
+print("Applying Hand-Eye-Pose to MoCap poses...")
+apply_hand_eye_transform(calib_path)

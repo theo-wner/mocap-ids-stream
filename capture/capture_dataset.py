@@ -19,24 +19,19 @@ def capture_dataset(stream_matcher, dataset_path, mode):
         mode (str): The mode of capturing, either 'auto' or 'manually'.
     """
     # Create Directories 
-    if stream_matcher.get_calib_path == None:
-        images_dir = os.path.join(dataset_path, "images_mocap") # Dir structure in case of capturing a calibration dataset
-    else:
-        images_dir = os.path.join(dataset_path, "images") # Dir structure in case of capturing a normal dataset
+    images_dir = os.path.join(dataset_path, "images")
     os.makedirs(images_dir)
-
-    poses_dir = os.path.join(dataset_path, "sparse", "0")
-    os.makedirs(poses_dir)
-    poses_path = os.path.join(poses_dir, "images.txt")
-
-    points3D_path = os.path.join(poses_dir, "points3D.txt") # Dummy file
-    with open(points3D_path, "w") as f:
-        pass
+    data_dir = os.path.join(dataset_path, "sparse", "0")
+    os.makedirs(data_dir)
+    if stream_matcher.get_calib_path() == None:
+        poses_path = os.path.join(dataset_path, "sparse", "0", "images_mocap.txt") # Dir structure in case of capturing a calibration dataset
+    else:
+        poses_path = os.path.join(dataset_path, "sparse", "0", "images.txt") # Dir structure in case of capturing a normal dataset
 
     # Set thresholds for auto capture mode
-    min_dist = 0.1 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
-    max_v_trans = 0.01 # Threshold for the maximal allowed tranlational velocity (m/s)
-    max_v_rot = 0.015 # Threshold for the maximal allowed rotational velocity (rad/s)
+    min_dist = 0.05 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
+    max_v_trans = 0.02 # Threshold for the maximal allowed tranlational velocity (m/s)
+    max_v_rot = 0.02 # Threshold for the maximal allowed rotational velocity (rad/s)
 
     with open(poses_path, "w") as poses_file:
         print("Capturing dataset. Press 'q' to quit.")

@@ -71,6 +71,11 @@ calib_cameras_path = os.path.join(calib_path, "sparse", "0", "cameras.txt")
 dataset_cameras_path = os.path.join(dataset_path, "sparse", "0", "cameras.txt")
 shutil.copy2(calib_cameras_path, dataset_cameras_path)
 
+# Create dummy file points3D.txt
+points3D_path = os.path.join(dataset_path, "sparse", "0" "points3D.txt")
+with open(points3D_path, "w") as f:
+    pass
+
 # Stop streams
 matcher.stop()
 cam_stream.stop()
