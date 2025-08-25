@@ -115,7 +115,7 @@ def refine_hand_eye_pose(dataset_path):
     # Load Hand-Eye-Pose and Base-World-Pose -------------------------------------------------
     T_tool2cam = np.loadtxt(os.path.join(dataset_path, "sparse", "0", "T_tool2cam.txt"))
     T_base2world = np.loadtxt(os.path.join(dataset_path, "sparse", "0", "T_base2world.txt"))
-
+    
     # Extract initial values for parameters --------------------------------------------------
     qvec_tool2cam = R.from_matrix(T_tool2cam[:3, :3]).as_quat(scalar_first=False)
     tvec_tool2cam = T_tool2cam[:3, 3]
@@ -125,8 +125,10 @@ def refine_hand_eye_pose(dataset_path):
 
     # Perform non-linear optimization --------------------------------------------------------
     result = least_squares(residuals, params_init, 
-                           args=(objpoints, imgpoints, T_base2tool, camera_matrix, distortion), 
-                           method="lm")
+                           args=(objpoints, imgpoints, T_base2tool, camera_matrix, distortion),
+                           jac="3-point",
+                           method="lm",
+                           loss="linear")
     #print(result)
 
 def apply_hand_eye_transform(dataset_path):

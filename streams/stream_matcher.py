@@ -52,7 +52,7 @@ class StreamMatcher():
                 self.intrinsics["FOCAL"] /= downsampling
 
             # Hand-Eye Calibration
-            self.hand_eye_pose = np.loadtxt(os.path.join(self.calib_path, "sparse", "0", "hand_eye_pose.txt"))
+            self.hand_eye_pose = np.loadtxt(os.path.join(self.calib_path, "sparse", "0", "T_tool2cam.txt"))
 
         # Set calibration to None if not provided
         else:
