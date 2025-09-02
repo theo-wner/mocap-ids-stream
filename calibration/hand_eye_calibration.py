@@ -5,6 +5,7 @@ import pickle
 from calibration.utils import read_poses
 from scipy.spatial.transform import Rotation as R
 from scipy.optimize import least_squares
+import pyceres
 
 def perform_hand_eye_calibration(dataset_path):
     """
@@ -76,10 +77,38 @@ def perform_robot_world_hand_eye_calibration(dataset_path):
 
 def refine_hand_eye_pose(dataset_path):
     # Load object points and image points ----------------------------------------------------
-    with open(os.path.join(dataset_path, "sparse", "0", "checkerboard_points.pkl"), "rb") as f:
-        points = pickle.load(f)
-    objpoints = points["objpoints"]
-    imgpoints = points["imgpoints"]
+    objpoints = []
+    with open(os.path.join(dataset_path, "sparse", "0", "objpoints.txt"), "r") as f:
+        header = f.readline()
+        block = []
+        for line in f:
+            line = line.strip()
+            if line:  # non-empty line
+                numbers = [float(x) for x in line.split()]
+                block.append(numbers[1:])
+            else:  # empty line indicates end of block
+                if block:
+                    objpoints.append(np.array(block))
+                    block = []
+        # Add last block if file doesn't end with a blank line
+        if block:
+            objpoints.append(np.array(block))
+
+    imgpoints = []
+    with open(os.path.join(dataset_path, "sparse", "0", "imgpoints.txt"), "r") as f:
+        header = f.readline()
+        block = []
+        for line in f:
+            line = line.strip()
+            if line: 
+                numbers = [float(x) for x in line.split()]
+                block.append(numbers[1:])
+            else: 
+                if block:
+                    imgpoints.append(np.array(block))
+                    block = []
+        if block:
+            imgpoints.append(np.array(block))
 
     # Read poses -----------------------------------------------------------------------------
     R_tool2base, t_tool2base = read_poses(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt"))
@@ -241,5 +270,7 @@ def residuals(params, objpoints, imgpoints, T_base2tool, camera_matrix, distorti
 
     return residuals
 
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    refine_hand_eye_pose("./data/calibrations/calibration_2025-08-21_09-54-12")
+    dataset = "./data/calibrations/calibration_2025-09-01_14-07-46"
+    refine_hand_eye_pose(dataset)

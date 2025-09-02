@@ -45,7 +45,7 @@ mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 17
                             rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                             buffer_size=15)
 
-matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10, calib_path=None) # No calib because for hand-eye calibration we need the raw MoCap poses
+matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=1, calib_path=None) # No calib because for hand-eye calibration we need the raw MoCap poses
 matcher.start_timing()
 
 # Capture dataset
@@ -59,4 +59,4 @@ mocap_stream.stop()
 print(f"Dataset captured and saved to {calib_path}")
 print("You can now use the captured data for camera- and hand-eye calibration using the script 'perform_calibration.py'.")
 print("Make now sure to check the captured images and delete any that are not suitable for calibration (e.g., blurry images).")
-print("The script 'perform_calib.py' will then automatically delete all poses that do not have a corresponding image.")
+print("The script 'perform_calibration.py' will then automatically delete all poses that do not have a corresponding image.")

@@ -26,7 +26,7 @@ if __name__ == "__main__":
                                rigid_body_id=2, # 1 for calibration wand, 2 for camera rig
                                buffer_size=15)
     
-    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_path="latest", downsampling=None)
+    matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_path=None, downsampling=None)
     matcher.start_timing()
 
     # Capture Loop

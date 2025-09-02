@@ -28,9 +28,18 @@ def perform_camera_calibration(dataset_path):
     objp[:,:2] = np.mgrid[0:cr*ss:ss, 0:cd*ss:ss].T.reshape(-1, 2) 
     objp = objp / 1000
 
+    # Write Checkerboard to file
+    checkerboard_file = os.path.join(dataset_path, "sparse", "0", "checkerboard.txt")
+    with open(checkerboard_file, "w") as f:
+        f.write("# ID X Y Z\n")
+        for idx, row in enumerate(objp):
+            formatted = " ".join(f"{val:.6f}" for val in row)
+            f.write(f"{idx} {formatted}\n")
+
     # Arrays to store object points and image points from all the images
     objpoints = [] # 3d point in real world space
     imgpoints = [] # 2d point in image plane
+    point_ids = [] # ids
 
     image_folder = os.path.join(dataset_path, "images")
 
@@ -50,6 +59,7 @@ def perform_camera_calibration(dataset_path):
             visible_objp = np.array([objp[i] for i in ids])
             objpoints.append(visible_objp)
             imgpoints.append(corners)
+            point_ids.append(ids)
 
             # Draw the corners with their ids
             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -149,12 +159,20 @@ def perform_camera_calibration(dataset_path):
     print(f"[✓] Saved intrinsics to {intr_file}")
 
     # Save Calibration results and Object/Image points for the following Hand-Eye-Calibration
-    points_file = os.path.join(dataset_path, "sparse", "0", "checkerboard_points.pkl")
-    points = {
-        "objpoints": objpoints,
-        "imgpoints": imgpoints,
-    }
-    with open(points_file, "wb") as f:
-        pickle.dump(points, f)
+    objpoints_file = os.path.join(dataset_path, "sparse", "0", "objpoints.txt")
+    with open(objpoints_file, "w") as f:
+        f.write("# ID X Y Z\n")
+        for ids_per_image, points_per_image in zip(point_ids, objpoints):
+            for id, point in zip(ids_per_image, points_per_image):
+                f.write(str(id) + " " + " ".join(f"{x:.6f}" for x in point) + "\n")
+            f.write("\n")
 
-    print(f"[✓] Saved visible object points and extracted image points for each image to {points_file}")
+    imgpoints_file = os.path.join(dataset_path, "sparse", "0", "imgpoints.txt")
+    with open(imgpoints_file, "w") as f:
+        f.write("# ID X (right) Y (down)\n")
+        for ids_per_image, points_per_image in zip(point_ids, imgpoints):
+            for id, point in zip(ids_per_image, points_per_image):
+                f.write(str(id) + " " + " ".join(f"{x:.6f}" for x in point[0]) + "\n")
+            f.write("\n")
+
+    print(f"[✓] Saved visible object points and extracted image points for each image to {objpoints_file} and {imgpoints_file}")
