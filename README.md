@@ -158,19 +158,24 @@ mocap_stream.stop()
 ### Calibration
 In order to directly obtain the Pose of the MoCap Base CS w.r.t. the CCS, the transform between the Rigid Body Coordinate System (hereby referred es Tool Coordinate System, TCS) and the CCS has to be calculated via a Hand-Eye-Calibration (HEC).
 To do that, the intended pipeline in this repository is the follwing:
-1. Execute `capture_calib_dataset`:
-This creates a new directory under `/data`. You can specify its name via the `--name`-flag or not specify the name to obtain a timestamp-based directory name.
-With this script, you can then capture images of an OpenCV-readable chessboard, which can later be used for camera calibration. Additionally, the MoCap poses of all images are saved under `mocap_poses.txt` for the HEC later.
+1. Execute `capture_calibration_dataset.py`:
+This creates a new directory under `/data`. You can specify its name via the `--calib_path`-flag or set `--calib_path` to `default` to obtain a timestamp-based directory name.
+With this script, you can then capture images of an OpenCV-readable chessboard, which can later be used for camera calibration. Additionally, the MoCap poses of all images are saved under `images_mocap.txt` for the HEC later.
 
 2. Filter out blurry images:
 All images are saved inside the `/images` subdirectory. You can now delete the ones not suitable for the calibration. There is no need to delete the corresponding MoCap poses.
 
-3. Execute `perform_calib`:
-This script first performs an OpenCV-based camera calibration, saving all image poses under `checkerboard_poses.txt` and the calculated intrinsics under `intrinsics.txt`
-Sequentially, the OpenCV-based HEC is performed using pairs of MoCap poses and checkerboard-based poses. The calculated hand-eye-pose is then saved to `hand_eye_pose.txt`
+3. Execute `perform_calibration.py`:
+This script first performs an OpenCV-based camera calibration of the calibration directory specified with `--calib_path`, or of the most recent one when setting `--calib_path` to `latest`.
+All calvulated image poses are then saved under `images_checkerboard.txt` and the calculated intrinsics under `intrinsics.txt`
+Sequentially, the OpenCV-based HEC is performed using pairs of MoCap poses and checkerboard-based poses. The linearly calculated hand-eye-pose is then saved to `hand_eye_pose.txt`.
+The calculated Hand-Eye-Pose and Base-World-Pose are then refined using a nonlinear approach by minimizing the reprojection error.
 
-Now the calibration process is completed and the path to the calibration directory can be passed to a StreamMatcher-Object, which then automatically applies the hand-eye-pose to the MoCap poses it returnes in the `getnext`-function. 
+4. Now the calibration process is completed and the path to the calibration directory can be passed to a StreamMatcher-Object, which then automatically applies the hand-eye-pose to the MoCap poses it returnes in the `getnext`-function. 
 You can either specify the path to the calibration dataset directly or pass `latest` to use the latest calibration.
 ```python
 matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest')
 ```
+Alternatively, a COLMAP-Style dataset can now be captured using the script `capture_calibrated_dataset.py`, which again takes the `--calib_path`-flag pointing to the desired calibration directory or the `latest` calibration.
+Additionally, this script now takes the flag `--dataset_path`, pointing to the desired path of the dataset to capture. This flag can again be a custom path or `deafult` to obtain a timestamp-based directory name.
+This script automatically applies the optimized Hand-Eye-Pose of the given `--calib_path`.

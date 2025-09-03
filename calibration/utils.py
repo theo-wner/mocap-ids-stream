@@ -3,6 +3,7 @@ import numpy as np
 from packaging import version
 from scipy.spatial.transform import Rotation as R
 import os
+from collections import defaultdict
 
 def findChessboardCorners(image, chessboard):
     """
@@ -147,6 +148,94 @@ def read_poses(filename):
             translations.append(trans)
     return rotations, translations
 
+def read_calib_points(dataset_path):
+    """
+    Reads 2D Image points from the file imgpoints.txt in dataset_path and returns them together with their corresponding 3D object points
+    """
+    checkerboard_pts = {}
+    with open(os.path.join(dataset_path, "sparse", "0", "checkerboard.txt"), "r") as f:
+        header = f.readline()
+        lines = f.readlines()
+        for line in lines:
+            pt_id, x, y, z = line.strip().split()
+            checkerboard_pts[pt_id] = (float(x), float(y), float(z))
+
+    imgpoints_dict = defaultdict(dict)
+    with open(os.path.join(dataset_path, "sparse", "0", "imgpoints.txt"), "r") as f:
+        header = f.readline()
+        lines = f.readlines()
+        for line in lines:
+            img_id, pt_id, x, y = line.strip().split()
+            imgpoints_dict[img_id][pt_id] = (float(x), float(y))
+
+    objpoints = []
+    imgpoints = []
+    for img_id, pts in imgpoints_dict.items():
+        common_pts = [pt_id for pt_id in pts if pt_id in checkerboard_pts]
+
+        obj = np.array([checkerboard_pts[pt_id] for pt_id in common_pts], dtype=np.float32)
+        img = np.array([pts[pt_id] for pt_id in common_pts], dtype=np.float32)
+
+        objpoints.append(obj)  # (n, 3)
+        imgpoints.append(img)  # (n, 2)
+
+    return objpoints, imgpoints
+
+def read_intrinsics(dataset_path):
+    """
+    Reads the intrinsic parameters from the OPENCV calibration
+    """
+    with open(os.path.join(dataset_path, "sparse", "0", "cameras.txt"), "r") as f:
+        for line in f:
+            if line.startswith("2 OPENCV"):
+                line = line.strip().split(" ")
+                fx = float(line[4])
+                fy = float(line[5])
+                cx = float(line[6])
+                cy = float(line[7])
+                k1 = float(line[8])
+                k2 = float(line[9])
+                p1 = float(line[10])
+                p2 = float(line[11])
+    return fx, fy, cx, cy, k1, k2, p1, p2
+
+def apply_hand_eye_transform(dataset_path):
+    """
+    Applies the Hand-Eye-Transform to the MoCap poses and saves the corrected poses to the images.txt file.
+
+    Args:
+        dataset_path (str): The path where the dataset is saved, which contains mocap poses (images_mocap.txt) and the Hand-Eye-Pose (hand_eye_pose.txt).
+    """
+    hand_eye_pose = np.loadtxt(os.path.join(dataset_path, "sparse", "0", "T_tool2cam.txt"))
+
+    with open(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt"), "r") as f:
+        lines = f.readlines()
+
+    with open(os.path.join(dataset_path, "sparse", "0", "images.txt"), "w") as out_f:
+        for line in lines:
+            if line.startswith("#") or line.strip() == "":
+                out_f.write(line)
+                continue
+
+            line = line.strip().split(" ")
+            img_id = line[0]
+            qw, qx, qy, qz, tx, ty, tz = [float(comp) for comp in line[1:8]]
+            cam_id = line[8]
+            name = line[9]
+
+            pose = np.eye(4)
+            pose[:3, :3] = R.from_quat((qx, qy, qz, qw), scalar_first=False).as_matrix()
+            pose[:3, 3] = np.array([tx, ty, tz])
+
+            # Apply Hand-Eye-Transform
+            pose = hand_eye_pose @ np.linalg.inv(pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+
+            qx, qy, qz, qw = R.from_matrix(pose[:3, :3]).as_quat(scalar_first=False)
+            tx, ty, tz = pose[:3, 3]
+
+            out_f.write(f"{img_id} {qw:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {tx:.6f} {ty:.6f} {tz:.6f} 1 {name}\n")
+
+    print(f"[✓] Applied Hand-Eye-Transform to MoCap poses and saved corrected poses to {os.path.join(dataset_path, "sparse", "0", "images.txt")}")
 
 
 

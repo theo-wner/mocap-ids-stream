@@ -5,7 +5,7 @@ import pickle
 from scipy.spatial.transform import Rotation as R
 from calibration.utils import findChessboardCorners
 
-def perform_camera_calibration(dataset_path):
+def perform_camera_calibration(dataset_path, chessboard):
     """
     This function performs camera calibration using images of a checkerboard pattern captured in the dataset.
     It saves the camera intrinsics and extrinsics to files.
@@ -13,17 +13,10 @@ def perform_camera_calibration(dataset_path):
     Args:
         dataset_path (str): The path where the dataset is saved, which contains the images of the checkerboard pattern.
     """
-    # Define Chessboard
-    chessboard = {'num_corners_down' : 23,
-                    'num_corners_right' : 16,
-                    'origin_marker_pos_down' : 10,
-                    'origin_marker_pos_right' : 7,
-                    'square_size' : 16}
+    # Define Object Points in meters
     cd = chessboard['num_corners_down']
     cr = chessboard['num_corners_right']
     ss = chessboard['square_size']
-
-    # Define Object Points in meters
     objp = np.zeros((cd*cr, 3), np.float32)
     objp[:,:2] = np.mgrid[0:cr*ss:ss, 0:cd*ss:ss].T.reshape(-1, 2) 
     objp = objp / 1000
@@ -31,7 +24,7 @@ def perform_camera_calibration(dataset_path):
     # Write Checkerboard to file
     checkerboard_file = os.path.join(dataset_path, "sparse", "0", "checkerboard.txt")
     with open(checkerboard_file, "w") as f:
-        f.write("# ID X Y Z\n")
+        f.write("# POINT_ID X Y Z\n")
         for idx, row in enumerate(objp):
             formatted = " ".join(f"{val:.6f}" for val in row)
             f.write(f"{idx} {formatted}\n")
@@ -147,6 +140,7 @@ def perform_camera_calibration(dataset_path):
     
     k1, k2, p1, p2 = distortion_o.ravel()[:4]  # Assumes only 4 distortion_o coefficients
 
+    # Save Calibration results and Image points for the following Hand-Eye-Calibration
     with open(intr_file, 'w') as f:
         f.write("# Camera list with one line of data per camera:\n")
         f.write("#   CAMERA_ID, MODEL, w, h, PARAMS[]\n")
@@ -155,24 +149,14 @@ def perform_camera_calibration(dataset_path):
         f.write("# PARAMS for OPENCV are: w, h, fx, fy, cx, cy, k1, k2, p1, p2\n")
         f.write(f"1 PINHOLE {w} {h} {fx_p:.6f} {fy_p:.6f} {cx_p:.6f} {cy_p:.6f}\n")
         f.write(f"2 OPENCV {w} {h} {fx_o:.6f} {fy_o:.6f} {cx_o:.6f} {cy_o:.6f} {k1:.6f} {k2:.6f} {p1:.6f} {p2:.6f}\n")
-
     print(f"[✓] Saved intrinsics to {intr_file}")
-
-    # Save Calibration results and Object/Image points for the following Hand-Eye-Calibration
-    objpoints_file = os.path.join(dataset_path, "sparse", "0", "objpoints.txt")
-    with open(objpoints_file, "w") as f:
-        f.write("# ID X Y Z\n")
-        for ids_per_image, points_per_image in zip(point_ids, objpoints):
-            for id, point in zip(ids_per_image, points_per_image):
-                f.write(str(id) + " " + " ".join(f"{x:.6f}" for x in point) + "\n")
-            f.write("\n")
 
     imgpoints_file = os.path.join(dataset_path, "sparse", "0", "imgpoints.txt")
     with open(imgpoints_file, "w") as f:
-        f.write("# ID X (right) Y (down)\n")
-        for ids_per_image, points_per_image in zip(point_ids, imgpoints):
+        f.write("# IMAGE_ID POINT_ID X (right) Y (down)\n")
+        for i, (ids_per_image, points_per_image) in enumerate(zip(point_ids, imgpoints)):
+            image_name = sorted(os.listdir(image_folder))[i]
+            image_idx = int(image_name.split('.')[0])
             for id, point in zip(ids_per_image, points_per_image):
-                f.write(str(id) + " " + " ".join(f"{x:.6f}" for x in point[0]) + "\n")
-            f.write("\n")
-
-    print(f"[✓] Saved visible object points and extracted image points for each image to {objpoints_file} and {imgpoints_file}")
+                f.write(str(image_idx) + " " + str(id) + " " + " ".join(f"{x:.6f}" for x in point[0]) + "\n")
+    print(f"[✓] Saved extracted image points for each image to {imgpoints_file}")

@@ -19,9 +19,9 @@ Author:
 import argparse
 import os
 from scipy.spatial.transform import Rotation as R
-from calibration.utils import filter_poses
+from calibration.utils import filter_poses, apply_hand_eye_transform
 from calibration.camera_calibration import perform_camera_calibration
-from calibration.hand_eye_calibration import perform_hand_eye_calibration, perform_robot_world_hand_eye_calibration, apply_hand_eye_transform, refine_hand_eye_pose
+from calibration.hand_eye_calibration import perform_hand_eye_calibration, perform_robot_world_hand_eye_calibration, refine_hand_eye_pose
 
 # Get dataset name from command line argument or use the one with the latest timestamp as default
 parser = argparse.ArgumentParser(description="Calibration Script")
@@ -40,8 +40,14 @@ print(f"Using calibration path: {calib_path}")
 filter_poses(calib_path)
 
 # Perform camera calibration
+# Define Chessboard
+chessboard = {'num_corners_down' : 23,
+                'num_corners_right' : 16,
+                'origin_marker_pos_down' : 10,
+                'origin_marker_pos_right' : 7,
+                'square_size' : 16}
 print("Performing camera calibration...")
-perform_camera_calibration(calib_path)
+perform_camera_calibration(calib_path, chessboard)
 
 # Perform hand-eye calibration
 print("Performing hand-eye calibration...")
@@ -51,6 +57,3 @@ perform_robot_world_hand_eye_calibration(calib_path)
 print("Refining Hand-Eye-Calibration...")
 refine_hand_eye_pose(calib_path)
 
-# Apply the Hand-Eye-Pose to the MoCap poses to recieve
-print("Applying Hand-Eye-Pose to MoCap poses...")
-apply_hand_eye_transform(calib_path)
