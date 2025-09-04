@@ -41,11 +41,11 @@ filter_poses(calib_path)
 
 # Perform camera calibration
 # Define Chessboard
-chessboard = {'num_corners_down' : 23,
-                'num_corners_right' : 16,
-                'origin_marker_pos_down' : 10,
+chessboard = {'num_corners_down' : 24,
+                'num_corners_right' : 17,
+                'origin_marker_pos_down' : 11,
                 'origin_marker_pos_right' : 7,
-                'square_size' : 16}
+                'square_size' : 30}
 print("Performing camera calibration...")
 perform_camera_calibration(calib_path, chessboard)
 
@@ -55,5 +55,5 @@ perform_robot_world_hand_eye_calibration(calib_path)
 
 # Refine hand-eye calibration
 print("Refining Hand-Eye-Calibration...")
-refine_hand_eye_pose(calib_path)
+refine_hand_eye_pose(calib_path, opt_mocap_poses=True, opt_intrinsics=True)
 

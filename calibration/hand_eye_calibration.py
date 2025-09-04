@@ -73,7 +73,7 @@ def perform_robot_world_hand_eye_calibration(dataset_path):
     # To retrieve the desired Base-to-Camera Transformation Matrices, perform:
     # T_base2cam = T_tool2cam @ T_base2tool -> Position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
 
-def residuals(params, objpoints, imgpoints, camera_matrix, distortion):
+def residuals(params, *args):
     """
     Defines a residual function which can be optimized with scipy.optimize.least_squares.
 
@@ -83,11 +83,29 @@ def residuals(params, objpoints, imgpoints, camera_matrix, distortion):
                                     Base-World-Pose 
                                     All MoCap (base2tool)-Poses
                                 All poses are parameterized as euler angles (xyz) and translation vector each                    
-        other parameters: Fixed parameters needed for the residual calculation
+        *args: Fixed parameters needed for the residual calculation
 
     Returns:
         residuals (numpy.ndarray): Residual vector with two entries for each point: x and y
     """
+    # Get object points and image points
+    objpoints = args[0]
+    imgpoints = args[1]
+    num_images = len(objpoints)
+
+    if len(args) == 5:
+        opt_mocap_poses = False
+        opt_intrinsics = False
+    elif len(args) == 4:
+        opt_mocap_poses = True
+        opt_intrinsics = False
+    elif len(args) == 2:
+        opt_mocap_poses = True
+        opt_intrinsics = True
+    else:
+        opt_mocap_poses = False
+        opt_intrinsics = True
+
     # Create homogenous transformation matrices from Hand-Eye-Pose and Base-World-Pose parameters
     rvec_tool2cam = params[:3]
     tvec_tool2cam = params[3:6]
@@ -101,20 +119,33 @@ def residuals(params, objpoints, imgpoints, camera_matrix, distortion):
     T_base2world = np.eye(4)
     T_base2world[:3, :3] = R.from_euler("xyz", rvec_base2world, degrees=False).as_matrix()
     T_base2world[:3, 3] = tvec_base2world
+    
+    if opt_mocap_poses:  # Take MoCap poses from parameters
+        params_base2tool = params[12: num_images*6+12]
+        T_base2tool = []
+        for i in range(num_images):
+            rvec = params_base2tool[i*6:i*6+3]
+            tvec = params_base2tool[i*6+3:i*6+6]
+            mtx = np.eye(4)
+            mtx[:3, :3] = R.from_euler("xyz", rvec, degrees=False).as_matrix()
+            mtx[:3, 3] = tvec
+            T_base2tool.append(mtx)
+    else: # Take MoCap poses from non optimizable arguments
+        T_base2tool = args[2]
 
-    params_base2tool = params[12:]
-    T_base2tool = []
-    for i in range(len(objpoints)):
-        rvec = params_base2tool[i*6:i*6+3]
-        tvec = params_base2tool[i*6+3:i*6+6]
-        mtx = np.eye(4)
-        mtx[:3, :3] = R.from_euler("xyz", rvec, degrees=False).as_matrix()
-        mtx[:3, 3] = tvec
-        T_base2tool.append(mtx)
+    if opt_intrinsics: # Take intrinsics from parameters
+        fx, fy, cx, cy, k1, k2, p1, p2 = params[-8:]
+        camera_matrix = np.array([[fx, 0, cx],
+                                [0, fy, cy],
+                                [0, 0, 1]])
+        distortion = np.array([k1, k2, p1, p2])
+    else: # Take intrinsics from non optimizable arguments
+        camera_matrix = args[-2]
+        distortion = args[-1]
 
     # Project the object points over the "robot arm" into the image plane
     reprpoints = []
-    for i in range(len(objpoints)): # Loop over each image
+    for i in range(num_images): # Loop over each image
         objp = np.hstack((objpoints[i], np.ones((objpoints[i].shape[0], 1)))) # Create homogenous coordinates
         transformed_objp = T_tool2cam @ T_base2tool[i] @ np.linalg.inv(T_base2world) @ objp.T # Transform Object Points from WCS --> BCS --> TCS --> CCS
         transformed_objp = transformed_objp.T[:, :3] # Remove homogenous component
@@ -128,7 +159,15 @@ def residuals(params, objpoints, imgpoints, camera_matrix, distortion):
 
     return residuals
 
-def refine_hand_eye_pose(dataset_path):
+def refine_hand_eye_pose(dataset_path, opt_mocap_poses=False, opt_intrinsics=False):
+    """
+    Refines the Hand-Eye-Pose and the Base-World-Pose using minimization of the reprojection error.
+
+    Args:
+        dataset_path (str): The path where the calibration dataset is saved
+        opt_mocap_poses (boolean): Determines, weather to take in the MoCap poses as optimizable parameters or not
+        opt_intrinsics (boolean): Determines, weather to take in the intrinsics as optimizable parameter or not
+    """
     # Read Hand-Eye-Pose and Base-World-Pose from linear approach
     T_tool2cam = np.loadtxt(os.path.join(dataset_path, "sparse", "0", "T_tool2cam.txt"))
     T_base2world = np.loadtxt(os.path.join(dataset_path, "sparse", "0", "T_base2world.txt"))
@@ -139,17 +178,12 @@ def refine_hand_eye_pose(dataset_path):
 
     # Read MoCap poses and invert them
     R_tool2base, t_tool2base = read_poses(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt"))
-    R_base2tool = [np.linalg.inv(entry) for entry in R_tool2base]
-    t_base2tool = [-entry_r @ entry_t for entry_r, entry_t in zip(R_base2tool, t_tool2base)]
-
-    # Build parameter list (alpha, beta, gamma, tx, ty, tz for each pose)
-    params_init = np.hstack([rvec_tool2cam, tvec_tool2cam, rvec_base2world, tvec_base2world])
-    for Rmat, tvec in zip(R_base2tool, t_base2tool):
-        rvec = R.from_matrix(Rmat).as_euler("xyz", degrees=False)
-        params_init = np.hstack([params_init, rvec, tvec])
-
-    # Read object points and image points
-    objpoints, imgpoints = read_calib_points(dataset_path)
+    T_base2tool = []
+    for Rmat, tvec in zip(R_tool2base, t_tool2base):
+        mtx = np.eye(4)
+        mtx[:3, :3] = Rmat
+        mtx[:3, 3] = tvec
+        T_base2tool.append(np.linalg.inv(mtx))
 
     # Read intrinsics
     fx, fy, cx, cy, k1, k2, p1, p2 = read_intrinsics(dataset_path)
@@ -158,8 +192,26 @@ def refine_hand_eye_pose(dataset_path):
                               [0, 0, 1]])
     distortion = np.array([k1, k2, p1, p2])
 
+    # Read object points and image points
+    objpoints, imgpoints = read_calib_points(dataset_path)
+
+    # Build parameter list and args tuple (non optimized parameters)
+    params_init = np.hstack([rvec_tool2cam, tvec_tool2cam, rvec_base2world, tvec_base2world])
+    args = (objpoints, imgpoints, T_base2tool, camera_matrix, distortion)
+    
+    if opt_mocap_poses: # Add MoCap poses to parameters and remove from args
+        for mtx in T_base2tool:
+            rvec = R.from_matrix(mtx[:3, :3]).as_euler("xyz", degrees=False)
+            tvec = mtx[:3, 3]
+            params_init = np.hstack([params_init, rvec, tvec])
+        args = (objpoints, imgpoints, camera_matrix, distortion)
+
+    if opt_intrinsics: # Add intrinsics to parameters and remove from args
+        params_init = np.hstack([params_init, fx, fy, cx, cy, k1, k2, p1, p2]) 
+        args = args[:-2]
+
     # Print reprojection error before optimization
-    res = residuals(params_init, objpoints, imgpoints, camera_matrix, distortion)
+    res = residuals(params_init, *args)
     total_points = len(res) / 2
     reprojection_error = np.sqrt(np.sum(res ** 2) / total_points)
     print(f"Reprojection error before optimization: {reprojection_error:.4f}")
@@ -167,14 +219,14 @@ def refine_hand_eye_pose(dataset_path):
     # Perform non-linear optimization
     result = least_squares(residuals, 
                            params_init, 
-                           args=(objpoints, imgpoints, camera_matrix, distortion),
+                           args=args,
                            jac="3-point",
                            method="lm",
                            loss="linear")
 
     # Print reprojection error after optimization
     params_opt = result["x"]
-    res = residuals(params_opt, objpoints, imgpoints, camera_matrix, distortion)
+    res = residuals(params_opt, *args)
     reprojection_error = np.sqrt(np.sum(res ** 2) / total_points)
     print(f"Reprojection error after optimization: {reprojection_error:.4f}")
 
