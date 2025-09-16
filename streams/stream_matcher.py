@@ -133,7 +133,7 @@ class StreamMatcher():
             frame, info = self.ids_stream.getnext()
         elif isinstance(for_image, tuple):
             frame, info = for_image
-        
+                   
         # Downsample the image
         if self.downsampling is not None:
             frame = cv2.resize(frame, (0, 0), fx=1/self.downsampling, fy=1/self.downsampling, interpolation=cv2.INTER_AREA)
@@ -148,34 +148,57 @@ class StreamMatcher():
         current_buffer = self.mocap_stream.get_current_buffer() # Get the current buffer of mocap data
 
         # Filter the buffer for valid mocap data based on tracking validity and marker error threshold and sort by timestamp
-        marker_error_threshold = 0.001
+        marker_error_threshold = 0.0005
         interest_buffer = sorted(
             [data for data in current_buffer if data['tracking_valid'] and data['mean_error'] < marker_error_threshold],
             key=lambda d: d['timestamp'].total_seconds()
         )
 
-        # Ensure at least 2 poses before and 2 poses after the query_time
+        # Ensure there are two poses before and after the query_time within 1/360s
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
-        before_count = sum(t < query_time for t in times)
-        after_count = sum(t > query_time for t in times)
-        if before_count < 2 or after_count < 2:
+        before_times = [t for t in times if t < query_time]
+        after_times = [t for t in times if t > query_time]
+        if len(before_times) < 2 or len(after_times) < 2:
             info = {'is_valid' : False, 
                     'pose' : None, 
                     'pose_velocity' : None, 
                     'Rt' : None, 
                     'focal' : None,
+                    'mean_error' : None,
                     'is_test' : False}
             return frame, info
-        
+        if query_time - before_times[-1] > 1/360 or after_times[0] - query_time > 1/360:
+            info = {'is_valid' : False, 
+                    'pose' : None, 
+                    'pose_velocity' : None, 
+                    'Rt' : None, 
+                    'focal' : None,
+                    'mean_error' : None,
+                    'is_test' : False}
+            return frame, info
+
         # Extract times, positions, and rotations from the buffer
         times = [data['timestamp'].total_seconds() for data in interest_buffer]
         positions = [data['rigid_body_pose']['position'] for data in interest_buffer]
         rotations = [data['rigid_body_pose']['rotation'] for data in interest_buffer]
+        errors = [data['mean_error'] for data in interest_buffer]
 
         # Create Translation-Splines (one for each xyz-dim) from valid buffer
         positions_plot = positions.copy()
         positions = np.array(positions).T
-        pos_splines = [CubicSpline(times, positions[dim]) for dim in range(3)]
+        try:
+            pos_splines = [CubicSpline(times, positions[dim]) for dim in range(3)]
+        except Exception as e:
+            print(f"Error creating position splines: {e}")
+            print(times)
+            info = {'is_valid' : False, 
+                    'pose' : None, 
+                    'pose_velocity' : None, 
+                    'Rt' : None, 
+                    'focal' : None,
+                    'mean_error' : None,
+                    'is_test' : False}
+            return frame, info
 
         # Create Rotation-Spline from valid buffer
         rotations_plot = rotations.copy()
@@ -192,7 +215,18 @@ class StreamMatcher():
 
         interpolated_angular_velocity_vec = rot_spline(query_time, 1)
         interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
+        
+        # For debugging: override the interpolated pose to be the one direct MoCap pose closest to the timestamp of the image
+        closest_idx = np.argmin(np.abs(np.array(times) - query_time))
+        """
+        interpolated_position = positions[:, closest_idx]
+        interpolated_rotation = rotations[closest_idx].as_quat(scalar_first=False)
+        """
+        closest_time = times[closest_idx]
+        mean_error = errors[closest_idx]
+        time_diff = abs(closest_time - query_time)
 
+        
         # Convert the pose to a 4x4 transformation matrix
         interpolated_pose = np.eye(4)
         interpolated_pose[:3, :3] = R.from_quat(interpolated_rotation, scalar_first=False).as_matrix()
@@ -220,6 +254,7 @@ class StreamMatcher():
                 'pose_velocity' : pose_velocity,
                 'Rt' : Rt,
                 'focal' : focal,
+                'mean_error' : mean_error,
                 'is_test' : False}
 
         # Plotting for debugging (optional)

@@ -151,6 +151,10 @@ class IDSStream:
                     # Process timestamp
                     timestamp = remote_nodemap.FindNode("ChunkTimestamp").Value()
                     timestamp = timedelta(seconds=timestamp / 1e9)  # Convert nanoseconds to seconds
+
+                    exposure_time = timedelta(microseconds=remote_nodemap.FindNode("ExposureTime").Value())
+                    timestamp = timestamp + exposure_time / 2 # Timestamp mid exposure
+
                     if self.initial_timing_offset is not None:
                         timestamp = timestamp - self.initial_timing_offset
                     self.info['timestamp'] = timestamp

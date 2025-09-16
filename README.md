@@ -54,14 +54,7 @@ However, if you download the SDK yourself, you need to make some modifications t
      self.command_thread.join(timeout=2)
      self.data_thread.join(timeout=2)
      ```
-4. To return quality metrics of the rigid body poses, modify the `__unpack_rigid_body()` method:
-   - Comment out the line:
-     ```python
-     if self.rigid_body_listener is not None: self.rigid_body_listener(new_id, pos, rot)
-     ```
-   - Replace it with:
-     ```python
-     if self.rigid_body_listener is not None: self.rigid_body_listener(new_id, pos, rot, marker_error, tracking_valid)
+4. Pull the print-statement in line ~2080 into the if condition
      ```
 
 ## Setting up this repository

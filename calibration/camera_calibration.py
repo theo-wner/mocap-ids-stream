@@ -63,6 +63,7 @@ def perform_camera_calibration(dataset_path, chessboard):
                 x, y = corner.ravel().astype(int)
                 text = str(ids[idx])
                 cv2.putText(img, text, (x + 5, y - 5), font, font_scale, font_color, thickness, cv2.LINE_AA)
+            cv2.putText(img, filename, (50, 150), font, 5, font_color, thickness, cv2.LINE_AA)
             cv2.drawChessboardCorners(img, found_shape, corners, retval)
             scale = 0.3
             resized_img = cv2.resize(img, (0, 0), fx=scale, fy=scale)

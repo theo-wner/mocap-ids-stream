@@ -1,15 +1,21 @@
-#=============================================================================
+# =============================================================================
 # Copyright © 2025 NaturalPoint, Inc. All Rights Reserved.
-# 
-# THIS SOFTWARE IS GOVERNED BY THE OPTITRACK PLUGINS EULA AVAILABLE AT https://www.optitrack.com/about/legal/eula.html 
-# AND/OR FOR DOWNLOAD WITH THE APPLICABLE SOFTWARE FILE(S) (“PLUGINS EULA”). BY DOWNLOADING, INSTALLING, ACTIVATING 
-# AND/OR OTHERWISE USING THE SOFTWARE, YOU ARE AGREEING THAT YOU HAVE READ, AND THAT YOU AGREE TO COMPLY WITH AND ARE
-# BOUND BY, THE PLUGINS EULA AND ALL APPLICABLE LAWS AND REGULATIONS. IF YOU DO NOT AGREE TO BE BOUND BY THE PLUGINS
-# EULA, THEN YOU MAY NOT DOWNLOAD, INSTALL, ACTIVATE OR OTHERWISE USE THE SOFTWARE AND YOU MUST PROMPTLY DELETE OR
-# RETURN IT. IF YOU ARE DOWNLOADING, INSTALLING, ACTIVATING AND/OR OTHERWISE USING THE SOFTWARE ON BEHALF OF AN ENTITY,
-# THEN BY DOING SO YOU REPRESENT AND WARRANT THAT YOU HAVE THE APPROPRIATE AUTHORITY TO ACCEPT THE PLUGINS EULA ON
-# BEHALF OF SUCH ENTITY. See license file in root directory for additional governing terms and information.
-#=============================================================================
+#
+# THIS SOFTWARE IS GOVERNED BY THE OPTITRACK PLUGINS EULA AVAILABLE AT
+# https://www.optitrack.com/about/legal/eula.html AND/OR FOR DOWNLOAD WITH THE
+# APPLICABLE SOFTWARE FILE(S) (“PLUGINS EULA”). BY DOWNLOADING, INSTALLING,
+# ACTIVATING AND/OR OTHERWISE USING THE SOFTWARE, YOU ARE AGREEING THAT YOU
+# HAVE READ, AND THAT YOU AGREE TO COMPLY WITH AND ARE BOUND BY, THE PLUGINS
+# EULA AND ALL APPLICABLE LAWS AND REGULATIONS. IF YOU DO NOT AGREE TO BE
+# BOUND BY THE PLUGINS EULA, THEN YOU MAY NOT DOWNLOAD, INSTALL, ACTIVATE OR
+# OTHERWISE USE THE SOFTWARE AND YOU MUST PROMPTLY DELETE OR RETURN IT. IF YOU
+# ARE DOWNLOADING, INSTALLING, ACTIVATING AND/OR OTHERWISE USING THE SOFTWARE
+# ON BEHALF OF AN ENTITY, THEN BY DOING SO YOU REPRESENT AND WARRANT THAT YOU
+# HAVE THE APPROPRIATE AUTHORITY TO ACCEPT THE PLUGINS EULA ON BEHALF OF SUCH
+# ENTITY.
+# See license file in root directory for additional governing terms and
+# information.
+# =============================================================================
 
 
 # OptiTrack NatNet direct depacketization sample for Python 3.x
@@ -119,6 +125,25 @@ def get_as_string(input_str):
     else:
         print("type_input_str = %s NOT HANDLED" % type_input_str)
         return input_str
+
+
+# Timecode Decoding Functions
+def decode_timecode(in_timecode, in_subframe_timecode):
+    """Takes in timecode and decodes it"""
+    hour = (in_timecode >> 24) & 255
+    minute = (in_timecode >> 16) & 255
+    second = (in_timecode >> 8) & 255
+    frame = in_timecode & 255
+    subframe = in_subframe_timecode
+
+    return hour, minute, second, frame, subframe
+
+
+def stringify_timecode(timecode, timecode_sub):
+    """prints out timecode"""
+    hour, minute, second, frame, subframe = decode_timecode(timecode, timecode_sub) #type: ignore  # noqa E501
+    timecode_string = f'{hour:02}:{minute:02}:{second:02}:{frame:02}:{subframe:02}' #type: ignore  # noqa E501
+    return timecode_string
 
 
 # MoCap Frame Classes
@@ -760,7 +785,14 @@ class FrameSuffixData:
     def get_as_string(self, tab_str="  ", level=0):
         out_tab_str = get_tab_str(tab_str, level)
 
+        if not self.timecode == -1 and not self.timecode_sub == -1:
+            self.timecode = stringify_timecode(self.timecode,
+                                               self.timecode_sub)
+
         out_str = ""
+        if not self.timecode == -1:
+            out_str += "%sTimecode: %s\n" % (
+                out_tab_str, self.timecode)
         if not self.timestamp == -1:
             out_str += "%sTimestamp                      : %3.3f\n" % (
                 out_tab_str, self.timestamp)

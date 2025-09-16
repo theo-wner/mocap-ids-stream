@@ -30,13 +30,13 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
     # Set thresholds for auto capture mode
     min_dist = 0.05 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
-    max_v_trans = 0.02 # Threshold for the maximal allowed tranlational velocity (m/s)
-    max_v_rot = 0.02 # Threshold for the maximal allowed rotational velocity (rad/s)
+    max_v_trans = 0.01 # Threshold for the maximal allowed tranlational velocity (m/s)
+    max_v_rot = 0.01 # Threshold for the maximal allowed rotational velocity (rad/s)
 
     with open(poses_path, "w") as poses_file:
         print("Capturing dataset. Press 'q' to quit.")
         poses_file.write("# Image list with two lines of data per image:\n")
-        poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n")
+        poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME, MEAN_MARKER_ERROR\n")
         poses_file.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
         poses_file.write("# Number of images: PLACEHOLDER, mean observations per image: 0\n")
         poses_file.write("# These poses have been captured with a MoCap system\n")
@@ -55,6 +55,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
             rot = info['pose']['rot']
             v_trans = info['pose_velocity']['pos']
             v_rot = info['pose_velocity']['rot']
+            mean_error = info['mean_error']
 
             if frame is not None:
                 frame_vis = cv2.resize(frame, (1000, 1000))
@@ -96,7 +97,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
                 cv2.imwrite(os.path.join(images_dir, image_name), frame)
                 poses_file.write(
                     f"{img_idx} {rot[3]:.6f} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} "
-                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 1 {image_name}\n\n"
+                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 1 {image_name} {mean_error:.6f}\n\n"
                 )
                 poses_file.flush()
                 print(f"Captured {image_name}")

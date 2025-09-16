@@ -49,7 +49,7 @@ matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=1, calib_path=
 matcher.start_timing()
 
 # Capture dataset
-capture_dataset(matcher, calib_path, mode='manually')
+capture_dataset(matcher, calib_path, mode='auto')
 
 # Stop streams
 matcher.stop()
