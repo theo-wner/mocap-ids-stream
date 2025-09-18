@@ -11,6 +11,8 @@ from datetime import timedelta
 from collections import deque
 import time
 import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate as interp
 from collections import defaultdict
 from scipy.spatial.transform import Rotation as R
 
@@ -57,16 +59,30 @@ class MoCapStream:
 
     def new_frame_with_data_listener(self, data_dict):
         mocap_data = data_dict["mocap_data"]
-        return_dict = {}
 
+
+        return_dict = {
+            "rigid_body": {},
+            "labeled_markers": {}
+        }
+
+        # Rigid bodies
         rigid_body_list = mocap_data.rigid_body_data.rigid_body_list
         for rb in rigid_body_list:
-            if rb.id_num == 2:
-                return_dict["rigid_body_pose"] = {}
-                return_dict["rigid_body_pose"]["position"] = list(rb.pos)
-                return_dict["rigid_body_pose"]["rotation"] = list(rb.rot)
-                return_dict["tracking_valid"] = rb.tracking_valid
-                return_dict["mean_error"] = rb.error
+            return_dict["rigid_body"][rb.id_num] = {
+                "pos": list(rb.pos),
+                "rot": list(rb.rot),
+                "tracking_valid": rb.tracking_valid,
+                "mean_error": rb.error,
+            }
+
+        # Labeled markers
+        labeled_marker_list = mocap_data.labeled_marker_data.labeled_marker_list
+        for lb in labeled_marker_list:
+            return_dict["labeled_markers"][lb.id_num] = {
+                "pos": list(lb.pos),
+                "belongs_to_rb" : (lb.param) == 10
+            }
 
         suffix_data = mocap_data.suffix_data
         timestamp = suffix_data.timestamp
@@ -89,6 +105,62 @@ class MoCapStream:
     
     def get_current_buffer(self):
         return self.pose_buffer.copy()
+    
+    def sync_event(self, stop_event=None):
+        times = []
+        ys = []
+
+        while True:
+            if stop_event is not None and stop_event.is_set():
+
+                break
+            try:        
+                mocap_data = self.getnext()
+
+                marker_list = list(mocap_data["labeled_markers"].values())
+                single_markers = [m for m in marker_list if not m["belongs_to_rb"]]
+
+                if len(single_markers) != 1:
+                    continue
+
+                y = single_markers[0]["pos"][1]
+                ys.append(y)
+                times.append(time.time())
+                time.sleep(0.0001)
+
+            except KeyboardInterrupt:
+                break
+
+        times = np.array(times)
+        ys = np.array(ys)
+
+        _, unique_indices = np.unique(ys, return_index=True)
+        unique_indices.sort()
+        unique_ys = ys[unique_indices]
+        unique_times = times[unique_indices]
+
+        interest_idx = np.argmax(unique_ys)
+        start_idx = interest_idx - 20
+        end_idx = interest_idx + 21
+
+        selected_ys = unique_ys[start_idx:end_idx]
+        selected_times = unique_times[start_idx:end_idx]
+
+        spline = interp.UnivariateSpline(selected_times, selected_ys, k=3, s=0)
+
+        time_fine = np.linspace(selected_times[0], selected_times[-1], 200)
+        ys_fine = spline(time_fine)
+
+        interest_idx = np.argmax(ys_fine)
+        interest_y = ys_fine[interest_idx]
+        interest_time = time_fine[interest_idx]
+
+        return {"interest_time" : interest_time,
+                "interest_y" : interest_y,
+                "original_times" : selected_times,
+                "original_ys" : selected_ys,
+                "interp_times" : time_fine,
+                "interp_ys": ys_fine}
     
     def stop(self):
         self.client.shutdown()

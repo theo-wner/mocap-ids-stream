@@ -4,13 +4,14 @@ import time
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 from streams.ids_stream import IDSStream
+from streams.ids_stream_debug import IDSStreamDebug
 
 def sync_event_cam(cam_stream):
     times = []
     rows = []
 
     while True:
-        frame, info = cam_stream.getnext()
+        frame = cam_stream.getnext()
         if frame is None:
             continue
 
@@ -23,7 +24,7 @@ def sync_event_cam(cam_stream):
 
         # Draw circles only on the RGB frame
         for c in cv2.findContours(eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
-            if 10000 <= cv2.contourArea(c) <= 200000:
+            if 5000 <= cv2.contourArea(c) <= 500000:
                 (x, y), radius = cv2.minEnclosingCircle(c)
                 cv2.circle(frame, (int(x), int(y)), int(radius), (0, 0, 255), 10) 
                 times.append(time.time())
@@ -41,29 +42,29 @@ def sync_event_cam(cam_stream):
     cam_stream.stop()
     cv2.destroyAllWindows()
 
-    # Calculate minimum row over time using cubic spline interpolation
     times = np.array(times)
     rows = np.array(rows)
 
-    interest_idx = np.argmin(rows)
+    _, unique_indices = np.unique(rows, return_index=True)
+    unique_indices.sort()
+    unique_rows = rows[unique_indices]
+    unique_times = times[unique_indices]
+
+    interest_idx = np.argmin(unique_rows)
     start_idx = interest_idx - 10
     end_idx = interest_idx + 11
 
-    selected_rows = rows[start_idx:end_idx]
-    selected_times = times[start_idx:end_idx]
-    _, unique_indices = np.unique(selected_rows, return_index=True)
-    unique_indices.sort()
-    selected_rows = selected_rows[unique_indices]
-    selected_times = selected_times[unique_indices]
+    selected_rows = unique_rows[start_idx:end_idx]
+    selected_times = unique_times[start_idx:end_idx]
 
     spline = interp.UnivariateSpline(selected_times, selected_rows, k=3, s=0)
 
     time_fine = np.linspace(selected_times[0], selected_times[-1], 200)
-    row_fine = spline(time_fine)
+    rows_fine = spline(time_fine)
 
-    min_idx = np.argmin(row_fine)
-    min_row = row_fine[min_idx]
-    min_time = time_fine[min_idx]
+    interest_idx = np.argmin(rows_fine)
+    interest_row = rows_fine[interest_idx]
+    interest_time = time_fine[interest_idx]
 
     intervals = np.diff(selected_times)
     avg_interval = np.mean(intervals)
@@ -73,8 +74,8 @@ def sync_event_cam(cam_stream):
     # Plotting
     plt.figure(figsize=(8,4))
     plt.plot(selected_times, selected_rows, 'o', label="Original points")
-    plt.plot(time_fine, row_fine, '-', label="Cubic spline")
-    plt.plot(min_time, min_row, 'rx', markersize=10, label=f"Min row")
+    plt.plot(time_fine, rows_fine, '-', label="Cubic spline")
+    plt.plot(interest_time, interest_row, 'rx', markersize=10, label=f"Min row")
     plt.xlabel("Time (s)")
     plt.ylabel("Row coordinate (px)")
     plt.gca().invert_yaxis()
@@ -85,10 +86,10 @@ def sync_event_cam(cam_stream):
             bbox=dict(facecolor='white', alpha=0.6, edgecolor='gray'))
     plt.show()
 
-    return min_time
+    return interest_time
 
 if __name__ == "__main__":
-    cam_stream = IDSStream(frame_rate='max',
+    cam_stream = IDSStreamDebug(frame_rate='max',
                            exposure_time='auto',
                            white_balance='auto',
                            gain='auto',
