@@ -4,7 +4,6 @@ import time
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 from streams.ids_stream import IDSStream
-from streams.ids_stream_debug import IDSStreamDebug
 
 def sync_event_cam(cam_stream):
     times = []
@@ -89,7 +88,7 @@ def sync_event_cam(cam_stream):
     return interest_time
 
 if __name__ == "__main__":
-    cam_stream = IDSStreamDebug(frame_rate='max',
+    cam_stream = IDSStream(frame_rate=45,
                            exposure_time='auto',
                            white_balance='auto',
                            gain='auto',

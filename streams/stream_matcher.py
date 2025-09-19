@@ -4,30 +4,26 @@ Module for matching data and handling time sync of an IDS Camera Stream and a Op
 Author:
     Theodor Kapler <theodor.kapler@student.kit.edu>
 """
-import numpy as np
+
 import threading
-import time
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
 import torch
 import os
-import cv2
-from scipy.spatial.transform import Rotation as R, RotationSpline
-from scipy.interpolate import CubicSpline
-import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
 
-class StreamMatcher():
+class StreamMatcher:
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, resync_interval, calib_path=None, downsampling=None, print_on_resync=False):
-        # Streams
+    def __init__(self, ids_stream, mocap_stream, rb_id, calib_path=None, downsampling=None):
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
-        self.resync_interval = resync_interval
+        self.rb_id = rb_id
         self.calib_path = calib_path
-        self.print_on_resync = print_on_resync
         self.downsampling = downsampling
-        
+        self.latency_diff = 0.040 # 40 ms
+
         # Set calibration if provided
         if self.calib_path is not None:
             if self.calib_path == "latest":
@@ -60,10 +56,6 @@ class StreamMatcher():
             self.hand_eye_pose = None
             print("No calibration directory provided. Intrinsics and Hand-Eye Calibration will not be applied.")
 
-        # Start resync thread
-        self.resync_thread = threading.Thread(target=self.resync_loop, daemon=True)
-        self.running = True
-
     def __len__(self):
         # Arbitrary large number as we don't know the length of a stream
         return 100_000_000  
@@ -74,250 +66,148 @@ class StreamMatcher():
         else:
             height, width = self.ids_stream.get_image_size()
             return (height // self.downsampling, width // self.downsampling) 
-        
+    
     def get_calib_path(self):
-        return self.calib_path
-        
+        return None
+    
     def get_focal(self):
         return self.intrinsics['FOCAL'] if self.intrinsics else None
 
-    def start_timing(self):
-        self.ids_stream.start_timing()
-        self.mocap_stream.start_timing()
-        self.resync_thread.start()
-        time.sleep(1)
+    def getnext(self, return_tensor=True):
+        # Get next frame and current mocap buffer
+        frame, timestamp = self.ids_stream.getnext()
+        corrected_timestamp = timestamp - self.latency_diff
 
-    def resync_loop(self):
-        while self.running:
-            time.sleep(self.resync_interval)
-            if self.print_on_resync:
-                print("Resyncronizing timestamps")
-            self.ids_stream.resync_timing()
-            self.mocap_stream.resync_timing()
-            
-    def wait_for_n_poses(self, n):
-        """
-        Waits until `n` new unique mocap poses have appeared in the buffer.
-        Uses object identity (memory address) to detect new pose entries.
-        """
-        buffer = self.mocap_stream.get_current_buffer()
-        seen_ids = {id(pose) for pose in buffer}
-        
-        while len(seen_ids) < len(buffer) + n:
-            buffer = self.mocap_stream.get_current_buffer()
-            seen_ids.update(id(pose) for pose in buffer)
-            time.sleep(0.001)
-
-    def getnext(self, for_image=None, return_tensor=True, show_plot=False):
-        """
-        Returns the current frame together with its corresponding pose information.
-        Can be directly used as getnext-Function inside the onthefly_nvs repo
-
-        Args:
-            - for_image (tuple): Optional, if passed, takes image and info as tuple from the argument, if None, retrieves a new image from ids_stream 
-            - show_plot (boolean): Determines wheather to show a plot for pose visulization or not
-
-        Returns:
-            - frame (torch.Tensor): The captured frame from the IDS Camera Stream, downsampled if specified
-            - info (dict): Dictionary containing the pose info
-                - keys:
-                    - is_valid (boolean): Shows if the interpolated pose is valid
-                    - pose (dict): The interpolated pose by the timestamp of image retrieval
-                    - pose_velocitiy (dict): The interpolated pose velocities by the timestamp of image retrieval
-                    - Rt (torch.Tensor): The 4x4 transformation matrix of the pose --> needed for onthefly_nvs
-                    - focal (torch.Tensor): The focal length of the camera, if available --> needed for onthefly_nvs
-                    - is_test (boolean): Indicates if the pose is a test pose --> needed for onthefly_nvs
-        """
-        # Check if for_image is provided, if not, get the next frame from the IDS stream
-        if for_image is None:
-            frame, info = self.ids_stream.getnext()
-        elif isinstance(for_image, tuple):
-            frame, info = for_image
-                   
-        # Downsample the image
         if self.downsampling is not None:
-            frame = cv2.resize(frame, (0, 0), fx=1/self.downsampling, fy=1/self.downsampling, interpolation=cv2.INTER_AREA)
+            frame = cv2.resize(frame, (frame.shape[1] // self.downsampling, frame.shape[0] // self.downsampling), interpolation=cv2.INTER_AREA)
 
-        # Convert to torch tensor
         if return_tensor:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
 
-        query_time = info['timestamp'].total_seconds()
-        self.wait_for_n_poses(self.mocap_stream.buffer_size // 2) # Ensure the buffer has enough poses to match
-        current_buffer = self.mocap_stream.get_current_buffer() # Get the current buffer of mocap data
+        pose_buffer = self.mocap_stream.get_current_buffer()
+        times = []
+        positions = []
+        rotations = []
+        errors = []
 
-        # Filter the buffer for valid mocap data based on tracking validity and marker error threshold and sort by timestamp
-        marker_error_threshold = 0.0005
-        interest_buffer = sorted(
-            [data for data in current_buffer if data['tracking_valid'] and data['mean_error'] < marker_error_threshold],
-            key=lambda d: d['timestamp'].total_seconds()
-        )
+        for pose in pose_buffer:
+            if pose["rigid_bodies"][self.rb_id]["tracking_valid"]:
+                times.append(pose["timestamp"])
+                positions.append(pose["rigid_bodies"][self.rb_id]["pos"])
+                rotations.append(pose["rigid_bodies"][self.rb_id]["rot"])
+                errors.append(pose["rigid_bodies"][self.rb_id]["mean_error"])
 
-        # Ensure there are two poses before and after the query_time within 1/360s
-        times = [data['timestamp'].total_seconds() for data in interest_buffer]
-        before_times = [t for t in times if t < query_time]
-        after_times = [t for t in times if t > query_time]
-        if len(before_times) < 2 or len(after_times) < 2:
-            info = {'is_valid' : False, 
-                    'pose' : None, 
-                    'pose_velocity' : None, 
-                    'Rt' : None, 
-                    'focal' : None,
-                    'mean_error' : None,
-                    'is_test' : False}
-            return frame, info
-        if query_time - before_times[-1] > 1/360 or after_times[0] - query_time > 1/360:
-            info = {'is_valid' : False, 
-                    'pose' : None, 
-                    'pose_velocity' : None, 
-                    'Rt' : None, 
-                    'focal' : None,
-                    'mean_error' : None,
-                    'is_test' : False}
-            return frame, info
-
-        # Extract times, positions, and rotations from the buffer
-        times = [data['timestamp'].total_seconds() for data in interest_buffer]
-        positions = [data['rigid_body_pose']['position'] for data in interest_buffer]
-        rotations = [data['rigid_body_pose']['rotation'] for data in interest_buffer]
-        errors = [data['mean_error'] for data in interest_buffer]
-
-        # Create Translation-Splines (one for each xyz-dim) from valid buffer
-        positions_plot = positions.copy()
-        positions = np.array(positions).T
-        try:
-            pos_splines = [CubicSpline(times, positions[dim]) for dim in range(3)]
-        except Exception as e:
-            print(f"Error creating position splines: {e}")
-            print(times)
-            info = {'is_valid' : False, 
-                    'pose' : None, 
-                    'pose_velocity' : None, 
-                    'Rt' : None, 
-                    'focal' : None,
-                    'mean_error' : None,
-                    'is_test' : False}
-            return frame, info
-
-        # Create Rotation-Spline from valid buffer
-        rotations_plot = rotations.copy()
-        rotations = R.from_quat(rotations)
-        rot_spline = RotationSpline(times, rotations)
-
-        # Query pose at the camera timestamp
-        interpolated_position = np.array([s(query_time) for s in pos_splines])
-        interpolated_rotation = rot_spline(query_time).as_quat(scalar_first=False)
-
-        # Query velocities at the camera timestamp
-        interpolated_linear_velocity_vec = np.array([s(query_time, 1) for s in pos_splines])
-        interpolated_lateral_velocity = np.linalg.norm(interpolated_linear_velocity_vec)
-
-        interpolated_angular_velocity_vec = rot_spline(query_time, 1)
-        interpolated_angular_velocity = np.linalg.norm(interpolated_angular_velocity_vec)
+        # Return None if buffer is too sparse
+        if len(times) < 3:
+            return frame, None
         
-        # For debugging: override the interpolated pose to be the one direct MoCap pose closest to the timestamp of the image
-        closest_idx = np.argmin(np.abs(np.array(times) - query_time))
+        # Sort by time
+        sorted_indices = sorted(range(len(times)), key=lambda k: times[k])
+        times = [times[i] for i in sorted_indices]
+        positions = [positions[i] for i in sorted_indices]
+        rotations = [rotations[i] for i in sorted_indices]
+        errors = [errors[i] for i in sorted_indices]
+        
+        # Get best fitting index
+        time_diffs = np.abs(np.array(times) - corrected_timestamp)
+        best_idx = np.argmin(time_diffs)
+
+        # Return None if index is 0 (best pose is likely too old for buffer) or index is last one (best pose is likely too new for buffer)
+        if best_idx == 0 or best_idx == len(times) - 1:
+            return frame, None
+        
+        # Calculate movement of the buffer
+        m_pos = np.mean(np.std(positions, axis=0)) * 1000
+        m_rot = np.mean(np.std(rotations, axis=0)) * 1000
+        
+        best_pose = {"pos" : positions[best_idx],
+                     "rot" : rotations[best_idx],
+                     "m_pos" : m_pos,
+                     "m_rot" : m_rot,
+                     "mean_error" : errors[best_idx],
+                     "timestamp" : times[best_idx],
+                     "time_diff" : time_diffs[best_idx]}
+        
+        return frame, best_pose
+
+    def get_time_diff(self):
         """
-        interpolated_position = positions[:, closest_idx]
-        interpolated_rotation = rotations[closest_idx].as_quat(scalar_first=False)
+        Runs the sync_event-method on both streams (IDS in main thread due to GUI, mocap in separate thread)
+        and returns their latency difference
         """
-        closest_time = times[closest_idx]
-        mean_error = errors[closest_idx]
-        time_diff = abs(closest_time - query_time)
+        stop_event = threading.Event()
+        mocap_results = {}
 
-        
-        # Convert the pose to a 4x4 transformation matrix
-        interpolated_pose = np.eye(4)
-        interpolated_pose[:3, :3] = R.from_quat(interpolated_rotation, scalar_first=False).as_matrix()
-        interpolated_pose[:3, 3] = interpolated_position
-        
-        # Apply the Hand-Eye Calibration if available
-        if self.hand_eye_pose is not None:
-            # Apply the Hand-Eye Calibration
-            interpolated_pose = self.hand_eye_pose @ np.linalg.inv(interpolated_pose) # Results in position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
+        # Run MoCap sync in a separate thread (no GUI in this thread)
+        def mocap_runner():
+            mocap_results.update(self.mocap_stream.sync_event(stop_event=stop_event))
 
-            # Extract the new position and rotation
-            interpolated_position = interpolated_pose[:3, 3]
-            interpolated_rotation = R.from_matrix(interpolated_pose[:3, :3]).as_quat(scalar_first=False)
+        mocap_thread = threading.Thread(target=mocap_runner)
+        mocap_thread.start()
 
-        # Create return dict
-        pose = {'pos' : interpolated_position, 'rot' : interpolated_rotation}
-        pose_velocity = {'pos' : interpolated_lateral_velocity, 'rot' : interpolated_angular_velocity}
-        Rt = interpolated_pose
-        focal = self.intrinsics['FOCAL'] if self.intrinsics is not None else None
-        if return_tensor:
-            Rt = torch.from_numpy(Rt).float().cuda()
-            focal = torch.from_numpy(np.array(focal)).float().unsqueeze(0).cuda() if focal is not None else None
-        info = {'is_valid' : True, 
-                'pose' : pose, 
-                'pose_velocity' : pose_velocity,
-                'Rt' : Rt,
-                'focal' : focal,
-                'mean_error' : mean_error,
-                'is_test' : False}
+        # Run camera sync in main thread
+        ids_results = self.ids_stream.sync_event()
 
-        # Plotting for debugging (optional)
-        if show_plot:
-            times_plot = np.linspace(times[0], times[-1], 100)
-            rot_spline_plot = rot_spline(times_plot).as_quat()
+        # Stop MoCap acquisition
+        stop_event.set()
+        mocap_thread.join()
 
-            # Compute velocities for the whole plot range
-            linear_velocities = np.array([[s(t, 1) for s in pos_splines] for t in times_plot])
-            lateral_velocities = np.linalg.norm(linear_velocities, axis=1)
-            angular_velocities = np.linalg.norm(rot_spline(times_plot, 1), axis=1)
+        # Extract times
+        ids_time = ids_results["interest_time"]
+        mocap_time = mocap_results["interest_time"]
+        time_diff = (ids_time - mocap_time) * 1000  # ms
 
-            fig, axs = plt.subplots(3, 1, figsize=(10, 12))
+        # Plot results
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-            # Plot quaternion components
-            axs[0].plot(times_plot, rot_spline_plot)
-            axs[0].plot(times, rotations_plot, 'x', color='black')
-            query_line0 = axs[0].axvline(query_time, color='red', linestyle='--')
-            axs[0].set_title("Quaternions over time")
-            axs[0].set_xlabel("Time [s]")
-            axs[0].set_ylabel("Quaternion components")
-            handles0 = [
-                mlines.Line2D([], [], color=axs[0].lines[i].get_color(), label=lbl)
-                for i, lbl in enumerate(['w', 'x', 'y', 'z'])
-            ]
-            handles0.append(
-                mlines.Line2D([], [], color='red', linestyle='--', label='query_time')
-            )
-            axs[0].legend(handles=handles0)
+        # IDS
+        ax1.plot(ids_results["original_times"], ids_results["original_rows"], 'o', label="Original Points")
+        ax1.plot(ids_results["interp_times"], ids_results["interp_rows"], '-', label="Cubic spline")
+        ax1.plot(ids_time, ids_results["interest_row"], 'rx', markersize=10, label="Min Row")
+        ax1.set_xlabel("Time (s)")
+        ax1.set_ylabel("Row coordinate (px)")
+        ax1.invert_yaxis()
+        ax1.grid(True)
+        ax1.legend()
+        ax1.set_title("Cam Sync Event")
+        ids_interval = ids_results["original_times"][-1] - ids_results["original_times"][0]
+        ids_samples = len(ids_results["original_times"])
+        ids_fps = ids_samples / ids_interval if ids_interval > 0 else 0
+        ids_dt_ms = (ids_interval / (ids_samples - 1) * 1000) if ids_samples > 1 else 0
+        ax1.text(0.95, 0.95, f"Sampling frequency: {ids_fps:.2f} Hz\nSampling interval: {ids_dt_ms:.2f} ms",
+                 transform=ax1.transAxes, ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
 
-            # Plot position splines
-            pos_spline_plot = np.array([[s(t) for s in pos_splines] for t in times_plot])
-            axs[1].plot(times_plot, pos_spline_plot)
-            axs[1].plot(times, positions_plot, 'x', color='black')
-            query_line1 = axs[1].axvline(query_time, color='red', linestyle='--')
-            axs[1].set_title("Position XYZ over time")
-            axs[1].set_xlabel("Time [s]")
-            axs[1].set_ylabel("Position [m]")
-            handles1 = [
-                mlines.Line2D([], [], color=axs[1].lines[i].get_color(), label=lbl)
-                for i, lbl in enumerate(['x', 'y', 'z'])
-            ]
-            handles1.append(
-                mlines.Line2D([], [], color='red', linestyle='--', label='query_time')
-            )
-            axs[1].legend(handles=handles1)
+        # MoCap
+        ax2.plot(mocap_results["original_times"], mocap_results["original_ys"], 'o', label="Original Points")
+        ax2.plot(mocap_results["interp_times"], mocap_results["interp_ys"], '-', label="Cubic spline")
+        ax2.plot(mocap_time, mocap_results["interest_y"], 'rx', markersize=10, label="Max Y")
+        ax2.set_xlabel("Time (s)")
+        ax2.set_ylabel("Y position")
+        ax2.grid(True)
+        ax2.legend()
+        ax2.set_title("MoCap Sync Event")
+        mocap_interval = mocap_results["original_times"][-1] - mocap_results["original_times"][0]
+        mocap_samples = len(mocap_results["original_times"])
+        mocap_fps = mocap_samples / mocap_interval if mocap_interval > 0 else 0
+        mocap_dt_ms = (mocap_interval / (mocap_samples - 1) * 1000) if mocap_samples > 1 else 0
+        ax2.text(0.95, 0.95, f"Sampling frequency: {mocap_fps:.2f} Hz\nSampling interval: {mocap_dt_ms:.2f} ms",
+                 transform=ax2.transAxes, ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
 
-            # Plot velocities
-            axs[2].plot(times_plot, lateral_velocities, label='Lateral velocity (m/s)', color='blue')
-            axs[2].plot(times_plot, angular_velocities, label='Angular velocity (rad/s)', color='orange')
-            axs[2].axvline(query_time, color='red', linestyle='--', label='query_time')
-            axs[2].scatter([query_time], [interpolated_lateral_velocity], color='blue', marker='x')
-            axs[2].scatter([query_time], [interpolated_angular_velocity], color='orange', marker='x')
-            axs[2].set_title("Velocities over time")
-            axs[2].set_xlabel("Time [s]")
-            axs[2].set_ylabel("Velocity")
-            axs[2].legend()
+        plt.suptitle(f"Time difference (IDS - MoCap): {time_diff:.2f} ms\nPress 'k' to keep, 'r' to reject")
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
-            plt.tight_layout()
-            plt.show()
+        # Wait for user decision
+        decision = {"keep": None}
+        def on_key(event):
+            if event.key == "k":
+                decision["keep"] = True
+                plt.close(fig)
+            elif event.key == "r":
+                decision["keep"] = False
+                plt.close(fig)
 
-        return frame, info
+        fig.canvas.mpl_connect("key_press_event", on_key)
+        plt.show()
 
-    def stop(self):
-        self.running = False
-        self.resync_thread.join()
+        return time_diff if decision["keep"] else None

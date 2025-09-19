@@ -31,7 +31,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
     # Set thresholds for auto capture mode
     min_dist = 0.05 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
     max_m_pos = 0.5 # Threshold for the maximal allowed positional movement (std of the pose buffer)
-    max_m_rot = 0.1 # Threshold for the maximal allowed rotational movement (std of the pose buffer)
+    max_m_rot = 0.05 # Threshold for the maximal allowed rotational movement (std of the pose buffer)
 
     with open(poses_path, "w") as poses_file:
         print("Capturing dataset. Press 'q' to quit.")

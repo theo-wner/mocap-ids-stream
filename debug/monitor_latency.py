@@ -1,12 +1,12 @@
-from streams.ids_stream_debug import IDSStreamDebug
+from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
-from streams.stream_matcher_debug import StreamMatcherDebug
+from streams.stream_matcher import StreamMatcher
 import cv2
 import time
 import numpy as np
 
 # Initialize streams
-cam_stream = IDSStreamDebug(
+cam_stream = IDSStream(
     frame_rate=45,
     exposure_time='auto',
     white_balance='auto',
@@ -17,10 +17,10 @@ cam_stream = IDSStreamDebug(
 mocap_stream = MoCapStream(
     client_ip="172.22.147.168",
     server_ip="172.22.147.182",
-    buffer_size=15
+    buffer_size=20
 )
 
-matcher = StreamMatcherDebug(cam_stream, mocap_stream, rb_id=2)
+matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2)
 
 # Data storage
 times = []

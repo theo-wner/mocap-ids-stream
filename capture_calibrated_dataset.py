@@ -49,7 +49,7 @@ else:
 print(f"Using dataset path: {dataset_path}")
 
 # Initialize streams
-cam_stream = IDSStream(frame_rate='max', 
+cam_stream = IDSStream(frame_rate=45, 
                         exposure_time=20000, 
                         white_balance='auto',
                         gain='auto',
