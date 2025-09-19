@@ -30,13 +30,13 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
     # Set thresholds for auto capture mode
     min_dist = 0.05 # Threshold for the minimal allowed euclidean distance to the last captured image (m)
-    max_v_trans = 0.01 # Threshold for the maximal allowed tranlational velocity (m/s)
-    max_v_rot = 0.01 # Threshold for the maximal allowed rotational velocity (rad/s)
+    max_m_pos = 0.5 # Threshold for the maximal allowed positional movement (std of the pose buffer)
+    max_m_rot = 0.1 # Threshold for the maximal allowed rotational movement (std of the pose buffer)
 
     with open(poses_path, "w") as poses_file:
         print("Capturing dataset. Press 'q' to quit.")
         poses_file.write("# Image list with two lines of data per image:\n")
-        poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME, MEAN_MARKER_ERROR\n")
+        poses_file.write("#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME, MEAN_MARKER_ERROR, TIME_DIFF\n")
         poses_file.write("#   POINTS2D[] as (X, Y, POINT3D_ID)\n")
         poses_file.write("# Number of images: PLACEHOLDER, mean observations per image: 0\n")
         poses_file.write("# These poses have been captured with a MoCap system\n")
@@ -45,17 +45,17 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
         while True:
             # Get Stream data
-            frame, info = stream_matcher.getnext(return_tensor=False, show_plot=False)
-            valid_pose = info['is_valid']
+            frame, info = stream_matcher.getnext(return_tensor=False)
 
-            if not valid_pose:
+            if info == None:
                 continue
 
-            pos = info['pose']['pos']
-            rot = info['pose']['rot']
-            v_trans = info['pose_velocity']['pos']
-            v_rot = info['pose_velocity']['rot']
-            mean_error = info['mean_error']
+            pos = info["pos"]
+            rot = info["rot"]
+            m_pos = info["m_pos"]
+            m_rot = info["m_rot"]
+            mean_error = info["mean_error"]
+            time_diff = info["time_diff"] * 1000
 
             if frame is not None:
                 frame_vis = cv2.resize(frame, (1000, 1000))
@@ -65,9 +65,6 @@ def capture_dataset(stream_matcher, dataset_path, mode):
             if key == ord('q'):
                 print("Exiting...")
                 break
-            
-            if not valid_pose:
-                continue
 
             should_save = False
 
@@ -81,7 +78,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
                     last_saved_pos = pos
                     continue
                 # Check if the pose meets the saving conditions
-                if v_trans <= max_v_trans and v_rot <= max_v_rot:
+                if m_pos <= max_m_pos and m_rot <= max_m_rot:
                     dist = ((pos[0] - last_saved_pos[0]) ** 2 +
                             (pos[1] - last_saved_pos[1]) ** 2 +
                             (pos[2] - last_saved_pos[2]) ** 2) ** 0.5
@@ -97,7 +94,7 @@ def capture_dataset(stream_matcher, dataset_path, mode):
                 cv2.imwrite(os.path.join(images_dir, image_name), frame)
                 poses_file.write(
                     f"{img_idx} {rot[3]:.6f} {rot[0]:.6f} {rot[1]:.6f} {rot[2]:.6f} "
-                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 1 {image_name} {mean_error:.6f}\n\n"
+                    f"{pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f} 1 {image_name} {mean_error:.6f} {time_diff:.6f}\n\n"
                 )
                 poses_file.flush()
                 print(f"Captured {image_name}")

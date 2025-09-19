@@ -17,11 +17,10 @@ cam_stream = IDSStreamDebug(
 mocap_stream = MoCapStream(
     client_ip="172.22.147.168",
     server_ip="172.22.147.182",
-    rigid_body_id=2,
     buffer_size=15
 )
 
-matcher = StreamMatcherDebug(cam_stream, mocap_stream)
+matcher = StreamMatcherDebug(cam_stream, mocap_stream, rb_id=2)
 
 # Data storage
 times = []
@@ -38,7 +37,8 @@ plot_height = 1000  # match camera height
 margin = 60  # margin for axes and labels
 
 while True:
-    frame = cam_stream.getnext()
+    frame, timestamp = cam_stream.getnext()
+    matcher.getnext()
     if frame is None:
         continue
 

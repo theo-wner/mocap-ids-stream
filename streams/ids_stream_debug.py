@@ -28,13 +28,10 @@ class IDSStreamDebug:
         self.white_balance = white_balance
         self.gain = gain
         self.gamma = gamma
-
-        # Hardcoded frame shape
         self.frame_shape = (2840, 2840)
 
         # Shared memory for frame
-        self.shm = shared_memory.SharedMemory(create=True,
-                                             size=np.prod(self.frame_shape) * np.uint8().nbytes)
+        self.shm = shared_memory.SharedMemory(create=True, size=np.prod(self.frame_shape) * np.uint8().nbytes)
         self.frame = np.ndarray(self.frame_shape, dtype=np.uint8, buffer=self.shm.buf)
 
         # Control flag
@@ -154,14 +151,14 @@ class IDSStreamDebug:
             print("Camera stream stopped")
 
     def getnext(self):
-        return cv2.cvtColor(self.frame, cv2.COLOR_BAYER_BG2BGR)
+        return cv2.cvtColor(self.frame, cv2.COLOR_BAYER_BG2BGR), time.time()
     
     def sync_event(self):
         times = []
         rows = []
 
         while True:
-            frame = self.getnext()
+            frame, timestamp = self.getnext()
             if frame is None:
                 continue
 
@@ -177,7 +174,7 @@ class IDSStreamDebug:
                 if 5000 <= cv2.contourArea(c) <= 500000:
                     (x, y), radius = cv2.minEnclosingCircle(c)
                     cv2.circle(frame, (int(x), int(y)), int(radius), (0, 0, 255), 10) 
-                    times.append(time.time())
+                    times.append(timestamp)
                     rows.append(y)
 
             # Show

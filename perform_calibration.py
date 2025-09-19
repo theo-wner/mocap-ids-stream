@@ -55,5 +55,5 @@ perform_robot_world_hand_eye_calibration(calib_path)
 
 # Refine hand-eye calibration
 print("Refining Hand-Eye-Calibration...")
-refine_hand_eye_pose(calib_path, opt_mocap_poses=False, opt_intrinsics=True)
+refine_hand_eye_pose(calib_path, opt_mocap_poses=False, opt_intrinsics=False)
 

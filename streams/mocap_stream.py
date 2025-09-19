@@ -21,11 +21,10 @@ class MoCapStream:
     A class to stream motion capture data from a NatNet server.
     """
 
-    def __init__(self, client_ip, server_ip, rigid_body_id, buffer_size):
+    def __init__(self, client_ip, server_ip, buffer_size):
         # Member variables to control the streaming
         self.client_ip = client_ip
         self.server_ip = server_ip
-        self.rigid_body_id = rigid_body_id
         self.buffer_size = buffer_size
 
         # Member variables to buffer the data
@@ -62,14 +61,15 @@ class MoCapStream:
 
 
         return_dict = {
-            "rigid_body": {},
-            "labeled_markers": {}
+            "rigid_bodies": {},
+            "labeled_markers": {},
+            "timestamp": None
         }
 
         # Rigid bodies
         rigid_body_list = mocap_data.rigid_body_data.rigid_body_list
         for rb in rigid_body_list:
-            return_dict["rigid_body"][rb.id_num] = {
+            return_dict["rigid_bodies"][rb.id_num] = {
                 "pos": list(rb.pos),
                 "rot": list(rb.rot),
                 "tracking_valid": rb.tracking_valid,
@@ -83,21 +83,8 @@ class MoCapStream:
                 "pos": list(lb.pos),
                 "belongs_to_rb" : (lb.param) == 10
             }
-
-        suffix_data = mocap_data.suffix_data
-        timestamp = suffix_data.timestamp
-        stamp_camera_mid_exposure = suffix_data.stamp_camera_mid_exposure
-        stamp_data_received = suffix_data.stamp_data_received
-        stamp_transmit = suffix_data.stamp_transmit
-
-        return_timestamp = timedelta(seconds=(stamp_camera_mid_exposure / 10_000_000))
-        
-        # Apply timing offset if set
-        if self.initial_timing_offset is not None:
-            return_timestamp = return_timestamp - self.initial_timing_offset
-
-        return_dict["timestamp"] = return_timestamp
-
+        # Timestamp
+        return_dict["timestamp"] = time.time()
         self.pose_buffer.append(return_dict)
 
     def getnext(self):
@@ -105,7 +92,7 @@ class MoCapStream:
     
     def get_current_buffer(self):
         return self.pose_buffer.copy()
-    
+
     def sync_event(self, stop_event=None):
         times = []
         ys = []
@@ -125,7 +112,8 @@ class MoCapStream:
 
                 y = single_markers[0]["pos"][1]
                 ys.append(y)
-                times.append(time.time())
+
+                times.append(mocap_data["timestamp"])
                 time.sleep(0.0001)
 
             except KeyboardInterrupt:
