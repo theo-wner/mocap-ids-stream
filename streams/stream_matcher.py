@@ -140,12 +140,13 @@ class StreamMatcher:
 
         best_pose = {"pos" : return_pos,
                      "rot" : return_rot,
-                     "transform" : return_transform,
+                     "Rt" : return_transform,
                      "m_pos" : m_pos,
                      "m_rot" : m_rot,
                      "mean_error" : errors[best_idx],
                      "timestamp" : times[best_idx],
-                     "time_diff" : time_diffs[best_idx]}
+                     "time_diff" : time_diffs[best_idx],
+                     "focal" : self.intrinsics["FOCAL"] if self.intrinsics else None}
         
         return frame, best_pose
 
