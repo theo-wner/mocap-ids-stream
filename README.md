@@ -90,30 +90,28 @@ The `IDSStream` class is a wrapper around the IDS Peak API, allowing for easy ac
 To use the `IDSStream` class, you can create an instance of it and call its methods to control the camera. For example:
 ```python
 from streams.ids_stream import IDSStream 
-   cam_stream = IDSStream(frame_rate='max', 
+   cam_stream = IDSStream(frame_rate=45, 
                         exposure_time='auto', 
                         white_balance='auto',
                         gain='auto',
-                        gamma=1.0,
-                        resize=None)
+                        gamma=1.0)
 frame, info = cam_stream.getnext()
 cam_stream.stop()
 ```
 ### MoCapStream Class
 The `MoCapStream` class is a wrapper around the NatNet SDK Python Client, which allows for easy access to motion capture data from the OptiTrack Motive software.
 To use the `MoCapStream` class, you can create an instance of it and call its methods to control the motion capture stream.
-The motion capture data is hold in a buffer, to allow for interpolation of poses.
+The motion capture data is hold in a buffer.
 ```python
 from streams.mocap_stream import MoCapStream
    mocap_stream = MoCapStream(client_ip="172.22.147.168",
-                              server_ip="172.22.147.182", 
-                              rigid_body_id=2,
-                              buffer_size=15)
+                              server_ip="172.22.147.182",
+                              buffer_size=20)
 pose = mocap_stream.getnext()
 mocap_stream.stop()
 ```
 ### StreamMatcher Class
-This repository also provides functionality to capture data from both the IDS camera and the OptiTrack motion capture system simultaneously and match them based on timestamps.
+This repository also provides functionality to capture data from both the IDS camera and the OptiTrack motion capture system simultaneously and match them.
 This is handled by the `StreamMatcher` class.
 A possible use case is to capture images from the IDS camera and corresponding poses from the OptiTrack system, which can then be used for various applications such as 3D reconstruction.
 The intended pipeline for that is the following:
@@ -122,31 +120,31 @@ The intended pipeline for that is the following:
 from streams.ids_stream import IDSStream
 from streams.mocap_stream import MoCapStream
 cam_stream = IDSStream(frame_rate=30, 
-                        exposure_time=20000, 
-                        resize=(1000, 1000))
+                        exposure_time=20000)
 mocap_stream = MoCapStream(client_ip="172.22.147.168",
-                            server_ip="172.22.147.182", 
-                            rigid_body_id=2,
+                            server_ip="172.22.147.182",
                             buffer_size=20)
 ```
 2. Initialize and start StreamMatcher:
 This starts the StreamMatcher instance, providing functionality for simultaneous Camera and MoCap data retrieval.
-Also, the StreamMatcher insance handles time synchronization by resetting the internal timers of both streams with continouus resnychronizing.
 ```python
-matcher = StreamMatcher(cam_stream, mocap_stream, resync_interval=10)
-matcher.start_timing()
+matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2, calib_path=None, downsampling=None)
 ```
 3. Retrieve simultaneous Camera and MoCap data:
-This retrieves the most current camera frame and calculates the best fitting interpolated pose being returned in `info`.
+This retrieves the most current camera frame and the best fitting MoCap pose stored in `info`.
 ```python
 frame, info = matcher.getnext()
 ```
 4. Stop all running Stream instances:
 ```python
-matcher.stop()
 cam_stream.stop()
 mocap_stream.stop()
 ```
+
+### Time synchronisation
+To account for the different latencies of camera and MoCap data, a fixed offset is assumed and applied inside the `StreamMatcher` class.
+To obtain this latency for the specific system setup, the script `monitor_latency.py` is provided.
+This involves an experiment inside the working space, which can be observed by both camera and MoCap. For further information, look into the documentation inside the script.
 
 ### Calibration
 In order to directly obtain the Pose of the MoCap Base CS w.r.t. the CCS, the transform between the Rigid Body Coordinate System (hereby referred es Tool Coordinate System, TCS) and the CCS has to be calculated via a Hand-Eye-Calibration (HEC).
@@ -167,7 +165,7 @@ The calculated Hand-Eye-Pose and Base-World-Pose are then refined using a nonlin
 4. Now the calibration process is completed and the path to the calibration directory can be passed to a StreamMatcher-Object, which then automatically applies the hand-eye-pose to the MoCap poses it returnes in the `getnext`-function. 
 You can either specify the path to the calibration dataset directly or pass `latest` to use the latest calibration.
 ```python
-matcher = StreamMatcher(cam_stream, mocap_stream, 10, calib_dir='latest')
+matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2, calib_path="latest", downsampling=None)
 ```
 Alternatively, a COLMAP-Style dataset can now be captured using the script `capture_calibrated_dataset.py`, which again takes the `--calib_path`-flag pointing to the desired calibration directory or the `latest` calibration.
 Additionally, this script now takes the flag `--dataset_path`, pointing to the desired path of the dataset to capture. This flag can again be a custom path or `deafult` to obtain a timestamp-based directory name.
