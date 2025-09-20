@@ -82,10 +82,6 @@ class StreamMatcher:
         if self.downsampling is not None:
             frame = cv2.resize(frame, (frame.shape[1] // self.downsampling, frame.shape[0] // self.downsampling), interpolation=cv2.INTER_AREA)
 
-        if return_tensor:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
-
         pose_buffer = self.mocap_stream.get_current_buffer()
         times = []
         positions = []
@@ -121,6 +117,7 @@ class StreamMatcher:
         # Prepare return values
         m_pos = np.mean(np.std(positions, axis=0)) * 1000
         m_rot = np.mean(np.std(rotations, axis=0)) * 1000
+        focal = self.intrinsics["FOCAL"] if self.intrinsics else None
         T_tool2base = np.eye(4)
         T_tool2base[0:3, 0:3] = R.from_quat(rotations[best_idx], scalar_first=False).as_matrix()
         T_tool2base[0:3, 3] = positions[best_idx]
@@ -138,15 +135,21 @@ class StreamMatcher:
             return_pos = T_base2cam[0:3, 3]
             return_rot = R.from_matrix(T_base2cam[0:3, 0:3]).as_quat(scalar_first=False)
 
+        if return_tensor:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
+            return_transform = torch.from_numpy(return_transform).cuda().float()
+            focal = torch.tensor(focal).cuda().float()
+
         best_pose = {"pos" : return_pos,
                      "rot" : return_rot,
                      "Rt" : return_transform,
                      "m_pos" : m_pos,
                      "m_rot" : m_rot,
+                     "focal" : focal,
                      "mean_error" : errors[best_idx],
                      "timestamp" : times[best_idx],
-                     "time_diff" : time_diffs[best_idx],
-                     "focal" : self.intrinsics["FOCAL"] if self.intrinsics else None}
+                     "time_diff" : time_diffs[best_idx]}
         
         return frame, best_pose
 
