@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 import torch
 import os
+from scipy.spatial.transform import Rotation as R
 
 class StreamMatcher:
     """
@@ -109,7 +110,7 @@ class StreamMatcher:
         rotations = [rotations[i] for i in sorted_indices]
         errors = [errors[i] for i in sorted_indices]
         
-        # Get best fitting index
+        # Get best fitting pose
         time_diffs = np.abs(np.array(times) - corrected_timestamp)
         best_idx = np.argmin(time_diffs)
 
@@ -117,12 +118,29 @@ class StreamMatcher:
         if best_idx == 0 or best_idx == len(times) - 1:
             return frame, None
         
-        # Calculate movement of the buffer
+        # Prepare return values
         m_pos = np.mean(np.std(positions, axis=0)) * 1000
         m_rot = np.mean(np.std(rotations, axis=0)) * 1000
-        
-        best_pose = {"pos" : positions[best_idx],
-                     "rot" : rotations[best_idx],
+        T_tool2base = np.eye(4)
+        T_tool2base[0:3, 0:3] = R.from_quat(rotations[best_idx], scalar_first=False).as_matrix()
+        T_tool2base[0:3, 3] = positions[best_idx]
+
+        # Apply Hand-Eye-Pose if available
+        if self.hand_eye_pose is None:
+            return_transform = T_tool2base
+            return_pos = positions[best_idx]
+            return_rot = rotations[best_idx]
+
+        elif self.hand_eye_pose is not None:
+            T_base2tool = np.linalg.inv(T_tool2base)
+            T_base2cam = self.hand_eye_pose @ T_base2tool
+            return_transform = T_base2cam
+            return_pos = T_base2cam[0:3, 3]
+            return_rot = R.from_matrix(T_base2cam[0:3, 0:3]).as_quat(scalar_first=False)
+
+        best_pose = {"pos" : return_rot,
+                     "rot" : return_pos,
+                     "transform" : return_transform,
                      "m_pos" : m_pos,
                      "m_rot" : m_rot,
                      "mean_error" : errors[best_idx],
