@@ -138,8 +138,8 @@ class StreamMatcher:
             return_pos = T_base2cam[0:3, 3]
             return_rot = R.from_matrix(T_base2cam[0:3, 0:3]).as_quat(scalar_first=False)
 
-        best_pose = {"pos" : return_rot,
-                     "rot" : return_pos,
+        best_pose = {"pos" : return_pos,
+                     "rot" : return_rot,
                      "transform" : return_transform,
                      "m_pos" : m_pos,
                      "m_rot" : m_rot,
