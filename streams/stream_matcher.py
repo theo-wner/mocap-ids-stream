@@ -149,7 +149,8 @@ class StreamMatcher:
                      "focal" : focal,
                      "mean_error" : errors[best_idx],
                      "timestamp" : times[best_idx],
-                     "time_diff" : time_diffs[best_idx]}
+                     "time_diff" : time_diffs[best_idx],
+                     "is_test" : False}
         
         return frame, best_pose
 
