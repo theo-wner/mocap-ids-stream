@@ -139,7 +139,7 @@ class StreamMatcher:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
             return_transform = torch.from_numpy(return_transform).cuda().float()
-            focal = torch.tensor(focal).cuda().float()
+            focal = torch.tensor(focal).cuda().float().unsqueeze(0)
 
         best_pose = {"pos" : return_pos,
                      "rot" : return_rot,
