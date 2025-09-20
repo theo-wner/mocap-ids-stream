@@ -55,7 +55,6 @@ However, if you download the SDK yourself, you need to make some modifications t
      self.data_thread.join(timeout=2)
      ```
 4. Pull the print-statement in line ~2080 into the if condition
-     ```
 
 ## Setting up this repository
 ### Directly working with this repository
