@@ -18,6 +18,7 @@ Author:
 """
 import argparse
 import os
+import numpy as np
 from scipy.spatial.transform import Rotation as R
 from calibration.utils import filter_poses, apply_hand_eye_transform
 from calibration.camera_calibration import perform_camera_calibration
@@ -39,13 +40,28 @@ print(f"Using calibration path: {calib_path}")
 # Ensure that all mocap poses have a corresponding image
 filter_poses(calib_path)
 
-# Perform camera calibration
 # Define Chessboard
 chessboard = {'num_corners_down' : 24,
                 'num_corners_right' : 17,
                 'origin_marker_pos_down' : 11,
                 'origin_marker_pos_right' : 7,
                 'square_size' : 30}
+
+# Write Checkerboard to file
+cd = chessboard['num_corners_down']
+cr = chessboard['num_corners_right']
+ss = chessboard['square_size']
+objp = np.zeros((cd*cr, 3), np.float32)
+objp[:,:2] = np.mgrid[0:cr*ss:ss, 0:cd*ss:ss].T.reshape(-1, 2) 
+objp = objp / 1000 # meters
+checkerboard_file = os.path.join(calib_path, "sparse", "0", "checkerboard.txt")
+with open(checkerboard_file, "w") as f:
+    f.write("# POINT_ID X Y Z\n")
+    for idx, row in enumerate(objp):
+        formatted = " ".join(f"{val:.6f}" for val in row)
+        f.write(f"{idx} {formatted}\n")
+
+# Perform camera calibration
 print("Performing camera calibration...")
 perform_camera_calibration(calib_path, chessboard)
 

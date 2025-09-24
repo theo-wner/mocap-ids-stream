@@ -44,7 +44,7 @@ mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 17
                             server_ip="172.22.147.182", 
                             buffer_size=20)
 
-matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2, calib_path=None, downsampling=None) # No calib because for hand-eye calibration we need the raw MoCap poses
+matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2, calib_path=None, downsampling=1) # No calib because for hand-eye calibration we need the raw MoCap poses
 
 # Capture dataset
 capture_dataset(matcher, calib_path, mode='auto')

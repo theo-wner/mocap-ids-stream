@@ -186,7 +186,7 @@ def refine_hand_eye_pose(dataset_path, opt_mocap_poses=False, opt_intrinsics=Fal
         T_base2tool.append(np.linalg.inv(mtx))
 
     # Read intrinsics
-    fx, fy, cx, cy, k1, k2, p1, p2 = read_intrinsics(dataset_path)
+    w, h, fx, fy, cx, cy, k1, k2, p1, p2 = read_intrinsics(dataset_path)
     camera_matrix = np.array([[fx, 0, cx],
                               [0, fy, cy],
                               [0, 0, 1]])
@@ -214,7 +214,7 @@ def refine_hand_eye_pose(dataset_path, opt_mocap_poses=False, opt_intrinsics=Fal
     res = residuals(params_init, *args)
     total_points = len(res) / 2
     reprojection_error = np.sqrt(np.sum(res ** 2) / total_points)
-    print(f"Reprojection error before optimization: {reprojection_error:.4f}")
+    print(f"Reprojection error before optimization: {reprojection_error:.2f} px")
 
     # Perform non-linear optimization
     result = least_squares(residuals, 
@@ -228,7 +228,7 @@ def refine_hand_eye_pose(dataset_path, opt_mocap_poses=False, opt_intrinsics=Fal
     params_opt = result["x"]
     res = residuals(params_opt, *args)
     reprojection_error = np.sqrt(np.sum(res ** 2) / total_points)
-    print(f"Reprojection error after optimization: {reprojection_error:.4f}")
+    print(f"Reprojection error after optimization: {reprojection_error:.2f} px")
 
     # Save optimized Hand-Eye-Pose and Base-World-Pose
     T_tool2cam_opt = np.eye(4)

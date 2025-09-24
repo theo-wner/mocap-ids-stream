@@ -17,12 +17,11 @@ class StreamMatcher:
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, rb_id, calib_path=None, downsampling=None):
+    def __init__(self, ids_stream, mocap_stream, rb_id, calib_path=None):
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
         self.rb_id = rb_id
         self.calib_path = calib_path
-        self.downsampling = downsampling
         self.latency_diff = 0.040 # 40 ms
 
         # Set calibration if provided
@@ -36,17 +35,32 @@ class StreamMatcher:
                 print(f"Using specified calibration directory: {self.calib_path}")
 
             # Intrinsics
+            self.intrinsics = {}
             with open(os.path.join(self.calib_path, "sparse", "0", "cameras.txt"), "r") as f:
                 for line in f:
                     if line.startswith("1 PINHOLE"):
                         line = line.strip().split(" ")
                         fx = float(line[4])
                         fy = float(line[5])
+                        self.intrinsics["simple_pinhole"] = {"f" : (fx + fy) / 2}
+                        continue
 
-            self.intrinsics = {"FOCAL" : (fx + fy) / 2}
-
-            if self.downsampling is not None:
-                self.intrinsics["FOCAL"] /= downsampling
+                    if line.startswith("2 OPENCV"):
+                        line = line.strip().split(" ")
+                        fx = float(line[4])
+                        fy = float(line[5])
+                        cx = float(line[6])
+                        cy = float(line[7])
+                        k1 = float(line[8])
+                        k2 = float(line[9])
+                        p1 = float(line[10])
+                        p2 = float(line[11])
+                        camera_matrix = np.array([[fx, 0, cx],
+                                                  [0, fy, cy],
+                                                  [0, 0, 1]])
+                        distortion = np.array([k1, k2, p1, p2])
+                        self.intrinsics["opencv"] = {"camera_matrix" : camera_matrix,
+                                                     "distortion" : distortion}
 
             # Hand-Eye Calibration
             self.hand_eye_pose = np.loadtxt(os.path.join(self.calib_path, "sparse", "0", "T_tool2cam_opt.txt"))
@@ -62,25 +76,19 @@ class StreamMatcher:
         return 100_000_000  
     
     def get_image_size(self):
-        if self.downsampling is None:
-            return self.ids_stream.get_image_size()
-        else:
-            height, width = self.ids_stream.get_image_size()
-            return (height // self.downsampling, width // self.downsampling) 
+        height, width = self.ids_stream.get_image_size()
+        return (height, width) 
     
     def get_calib_path(self):
         return None
     
     def get_focal(self):
-        return self.intrinsics['FOCAL'] if self.intrinsics else None
+        return self.intrinsics["simple_pinhole"]["f"] if self.intrinsics else None
 
     def getnext(self, return_tensor=True):
         # Get next frame and current mocap buffer
         frame, timestamp = self.ids_stream.getnext()
         corrected_timestamp = timestamp - self.latency_diff
-
-        if self.downsampling is not None:
-            frame = cv2.resize(frame, (frame.shape[1] // self.downsampling, frame.shape[0] // self.downsampling), interpolation=cv2.INTER_AREA)
 
         pose_buffer = self.mocap_stream.get_current_buffer()
         times = []
@@ -117,7 +125,9 @@ class StreamMatcher:
         # Prepare return values
         m_pos = np.mean(np.std(positions, axis=0)) * 1000
         m_rot = np.mean(np.std(rotations, axis=0)) * 1000
-        focal = self.intrinsics["FOCAL"] if self.intrinsics else None
+        focal = self.intrinsics["simple_pinhole"]["f"] if self.intrinsics else None
+        camera_matrix = self.intrinsics["opencv"]["camera_matrix"] if self.intrinsics else None
+        distortion = self.intrinsics["opencv"]["distortion"] if self.intrinsics else None
         T_tool2base = np.eye(4)
         T_tool2base[0:3, 0:3] = R.from_quat(rotations[best_idx], scalar_first=False).as_matrix()
         T_tool2base[0:3, 3] = positions[best_idx]
@@ -141,18 +151,20 @@ class StreamMatcher:
             return_transform = torch.from_numpy(return_transform).cuda().float()
             focal = torch.tensor(focal).cuda().float().unsqueeze(0)
 
-        best_pose = {"pos" : return_pos,
-                     "rot" : return_rot,
-                     "Rt" : return_transform,
-                     "m_pos" : m_pos,
-                     "m_rot" : m_rot,
-                     "focal" : focal,
-                     "mean_error" : errors[best_idx],
-                     "timestamp" : times[best_idx],
-                     "time_diff" : time_diffs[best_idx],
-                     "is_test" : False}
+        info = {"pos" : return_pos,
+                "rot" : return_rot,
+                "m_pos" : m_pos,
+                "m_rot" : m_rot,
+                "mean_error" : errors[best_idx],
+                "timestamp" : times[best_idx],
+                "time_diff" : time_diffs[best_idx],
+                "camera_matrix" : camera_matrix,
+                "distortion" : distortion,
+                "Rt" : return_transform, # for on-the-fly-nvs
+                "focal" : focal, # for on-the-fly-nvs
+                "is_test" : False,} # for on-the-fly-nvss
         
-        return frame, best_pose
+        return frame, info
 
     def get_time_diff(self):
         """

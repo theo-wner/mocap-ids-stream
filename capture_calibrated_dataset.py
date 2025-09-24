@@ -59,10 +59,10 @@ mocap_stream = MoCapStream(client_ip="172.22.147.168", # 168 for workstation, 17
                             server_ip="172.22.147.182", 
                             buffer_size=20)
 
-matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2, calib_path=calib_path, downsampling=None) # No calib because for hand-eye calibration we need the raw MoCap poses
+matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2, calib_path=calib_path)
 
 # Capture dataset
-capture_dataset(matcher, dataset_path, mode='auto')
+capture_dataset(matcher, dataset_path, mode='auto', downsampling=1, undistort=True)
 
 # Copy cameras.txt from calibration path to dataset path
 calib_cameras_path = os.path.join(calib_path, "sparse", "0", "cameras.txt")
@@ -70,7 +70,7 @@ dataset_cameras_path = os.path.join(dataset_path, "sparse", "0", "cameras.txt")
 shutil.copy2(calib_cameras_path, dataset_cameras_path)
 
 # Create dummy file points3D.txt
-points3D_path = os.path.join(dataset_path, "sparse", "0" "points3D.txt")
+points3D_path = os.path.join(dataset_path, "sparse", "0", "points3D.txt")
 with open(points3D_path, "w") as f:
     pass
 

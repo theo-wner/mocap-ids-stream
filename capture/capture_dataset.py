@@ -7,8 +7,9 @@ Author:
 
 import os
 import cv2
+import numpy as np
 
-def capture_dataset(stream_matcher, dataset_path, mode):
+def capture_dataset(stream_matcher, dataset_path, mode, downsampling=1, undistort=False):
     """
     This function captures frames from the camera and motion capture data in a loop.
     Whenever a pose satisfies the "saving-conditions", it saves the current frame and pose to a file.
@@ -49,6 +50,22 @@ def capture_dataset(stream_matcher, dataset_path, mode):
 
             if info == None:
                 continue
+
+            if downsampling != 1:
+                frame = cv2.resize(frame, (frame.shape[1] // downsampling, frame.shape[0] // downsampling), interpolation=cv2.INTER_AREA)
+
+            if undistort == True:
+                distortion = info["distortion"]
+                camera_matrix = info["camera_matrix"]
+                fx = camera_matrix[0][0] / downsampling
+                fy = camera_matrix[1][1] / downsampling
+                h, w = stream_matcher.get_image_size()
+                cx = (w / 2) / downsampling
+                cy = (h / 2) / downsampling
+                new_camera_matrix = np.array([[fx, 0, cx],
+                                              [0, fy, cy],
+                                              [0, 0, 1]])
+                frame = cv2.undistort(frame, camera_matrix, distortion, None, new_camera_matrix)
 
             pos = info["pos"]
             rot = info["rot"]

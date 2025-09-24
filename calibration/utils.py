@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation as R
 import os
 from collections import defaultdict
 
-def findChessboardCorners(image, chessboard):
+def findChessboardCorners(image_folder, chessboard):
     """
     Wrapper function for the OpenCV-Function findChessboardCornersSB() found at: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#gadc5bcb05cb21cf1e50963df26986d7c9
     Simplifies the usage of above function by directly returning unique IDs for each corner based on the used chessboard.
@@ -22,7 +22,7 @@ def findChessboardCorners(image, chessboard):
         - When determining the position of a square: Count the number of corner in the desired direction beginning at 0
 
     Args:
-        image (numpy.ndarray):
+        image_folder (str): Folder with images containing the chessboard
         chessboard (dict): A dictionary representing the used chessboard
             Expected Keys:
                 - 'num_corners_down' (int): Count of corners in down-direction
@@ -35,6 +35,19 @@ def findChessboardCorners(image, chessboard):
     if not (version.parse("4.3.0") <= version.parse(current_version) <= version.parse("4.11.0")):
         print(f"⚠️ Warning: OpenCV version {current_version} is not supported. Please install either 4.10.0.84 or 4.11.0.86")
 
+    # Define Object Points in meters
+    cd = chessboard['num_corners_down']
+    cr = chessboard['num_corners_right']
+    ss = chessboard['square_size']
+    objp = np.zeros((cd*cr, 3), np.float32)
+    objp[:,:2] = np.mgrid[0:cr*ss:ss, 0:cd*ss:ss].T.reshape(-1, 2) 
+    objp = objp / 1000
+
+    # Arrays to store object points and image points from all the images
+    objpoints = [] # 3d point in real world space
+    imgpoints = [] # 2d point in image plane
+    point_ids = [] # ids
+
     # Initial minimal pattern size --> Any patterns larger than this can be detected, so set very low
     initial_pattern_size = (3, 3)
 
@@ -43,18 +56,47 @@ def findChessboardCorners(image, chessboard):
             cv2.CALIB_CB_EXHAUSTIVE | # Improves Detection rate
             cv2.CALIB_CB_ACCURACY | # Improces Accuracy
             cv2.CALIB_CB_LARGER | # Allows finding more markers than given in the initial pattern size (needed for partially unvisible chessboard)
-            cv2.CALIB_CB_MARKER) # Forces the input image to have the finder pattern (needed for identifying homologous points with partially unvisible chessboard)
-    
-    # Detect corners
-    retval, corners, meta = cv2.findChessboardCornersSBWithMeta(image, initial_pattern_size, flags)
+            cv2.CALIB_CB_MARKER) # Forces the input image to have the finder pattern (needed for identifying homologous points with partially unvisible chessboard)   
 
-    # Only continue if corners were found
-    if retval:
-        ids = get_corner_ids(meta, chessboard)
-        found_shape = meta.shape
-        return retval, found_shape, corners, ids   
-    else:
-        return False, None, None, None
+    for filename in sorted(os.listdir(image_folder)):
+        filepath = os.path.join(image_folder, filename)
+        print(filepath)
+        img = cv2.imread(filepath)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Find chessboard corners
+        retval, corners, meta = cv2.findChessboardCornersSBWithMeta(gray, initial_pattern_size, flags)
+        if not retval:
+            print(f"Checkerboard not found in {filename}. Please delete this image and run the script again.")
+
+        # If found, add the object points and image points
+        if retval:
+            ids = get_corner_ids(meta, chessboard)
+            found_shape = meta.shape
+            visible_objp = np.array([objp[i] for i in ids])
+            objpoints.append(visible_objp)
+            imgpoints.append(corners)
+            point_ids.append(ids)
+
+            # Draw the corners with their ids
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 1
+            font_color = (0, 255, 0)
+            thickness = 2
+            for idx, corner in enumerate(corners):
+                x, y = corner.ravel().astype(int)
+                text = str(ids[idx])
+                cv2.putText(img, text, (x + 5, y - 5), font, font_scale, font_color, thickness, cv2.LINE_AA)
+            cv2.putText(img, filename, (50, 150), font, 5, font_color, thickness, cv2.LINE_AA)
+            cv2.drawChessboardCorners(img, found_shape, corners, retval)
+            scale = 0.3
+            resized_img = cv2.resize(img, (0, 0), fx=scale, fy=scale)
+            cv2.imshow('img', resized_img)
+            cv2.waitKey(100)
+
+    cv2.destroyAllWindows()
+
+    return objpoints, imgpoints, point_ids
 
 def get_corner_ids(meta, chessboard):
     """
@@ -189,6 +231,8 @@ def read_intrinsics(dataset_path):
         for line in f:
             if line.startswith("2 OPENCV"):
                 line = line.strip().split(" ")
+                w = float(line[2])
+                h = float(line[3])
                 fx = float(line[4])
                 fy = float(line[5])
                 cx = float(line[6])
@@ -197,7 +241,7 @@ def read_intrinsics(dataset_path):
                 k2 = float(line[9])
                 p1 = float(line[10])
                 p2 = float(line[11])
-    return fx, fy, cx, cy, k1, k2, p1, p2
+    return w, h, fx, fy, cx, cy, k1, k2, p1, p2
 
 def apply_hand_eye_transform(dataset_path):
     """
