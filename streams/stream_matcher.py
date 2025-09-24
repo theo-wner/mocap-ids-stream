@@ -79,6 +79,12 @@ class StreamMatcher:
     
     def get_image_size(self):
         height, width = self.ids_stream.get_image_size()
+        height //= self.downsampling
+        width //= self.downsampling
+        return (height, width) 
+    
+    def get_original_image_size(self):
+        height, width = self.ids_stream.get_image_size()
         return (height, width) 
     
     def get_calib_path(self):
@@ -148,7 +154,7 @@ class StreamMatcher:
             return_rot = R.from_matrix(T_base2cam[0:3, 0:3]).as_quat(scalar_first=False)
 
         if self.undistort:
-            h, w = self.get_image_size()
+            h, w = self.get_original_image_size()
             fx = camera_matrix[0][0]
             fy = camera_matrix[1][1]
             cx = w / 2
