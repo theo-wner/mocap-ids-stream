@@ -133,6 +133,10 @@ class IDSStream:
                     np.copyto(self.frame, img)
 
                     data_stream.QueueBuffer(buffer)
+
+                except KeyboardInterrupt:
+                    break
+
                 except Exception as e:
                     print(f"Streaming exception: {e}")
                     break

@@ -163,6 +163,7 @@ class StreamMatcher:
                                             [0, fy, cy],
                                             [0, 0, 1]])
             frame = cv2.undistort(frame, camera_matrix, distortion, None, new_camera_matrix)
+            focal = (fx + fy) / 2
 
         if self.downsampling > 1:
             frame = cv2.resize(frame, self.get_image_size(), interpolation=cv2.INTER_AREA)
