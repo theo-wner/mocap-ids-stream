@@ -165,7 +165,7 @@ class StreamMatcher:
             frame = cv2.undistort(frame, camera_matrix, distortion, None, new_camera_matrix)
 
         if self.downsampling > 1:
-            frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
+            frame = cv2.resize(frame, self.get_image_size(), interpolation=cv2.INTER_AREA)
             focal /= self.downsampling
 
         if return_tensor:
