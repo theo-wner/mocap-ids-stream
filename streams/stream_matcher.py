@@ -85,7 +85,7 @@ class StreamMatcher:
     def get_focal(self):
         return self.intrinsics["simple_pinhole"]["f"] if self.intrinsics else None
 
-    def getnext(self, return_tensor=True):
+    def getnext(self):
         # Get next frame and current mocap buffer
         frame, timestamp = self.ids_stream.getnext()
         corrected_timestamp = timestamp - self.latency_diff
@@ -144,12 +144,6 @@ class StreamMatcher:
             return_transform = T_base2cam
             return_pos = T_base2cam[0:3, 3]
             return_rot = R.from_matrix(T_base2cam[0:3, 0:3]).as_quat(scalar_first=False)
-
-        if return_tensor:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
-            return_transform = torch.from_numpy(return_transform).cuda().float()
-            focal = torch.tensor(focal).cuda().float().unsqueeze(0)
 
         info = {"pos" : return_pos,
                 "rot" : return_rot,
