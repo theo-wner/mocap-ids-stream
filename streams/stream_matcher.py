@@ -17,11 +17,13 @@ class StreamMatcher:
     """
     A class to handle Streams from both an IDS Camera and a OptiTrack MoCap System
     """
-    def __init__(self, ids_stream, mocap_stream, rb_id, calib_path=None):
+    def __init__(self, ids_stream, mocap_stream, rb_id, calib_path=None, undistort=False, downsampling=1):
         self.ids_stream = ids_stream
         self.mocap_stream = mocap_stream
         self.rb_id = rb_id
         self.calib_path = calib_path
+        self.undistort = undistort
+        self.downsampling = downsampling
         self.latency_diff = 0.040 # 40 ms
 
         # Set calibration if provided
@@ -85,7 +87,7 @@ class StreamMatcher:
     def get_focal(self):
         return self.intrinsics["simple_pinhole"]["f"] if self.intrinsics else None
 
-    def getnext(self):
+    def getnext(self, return_tensor=True):
         # Get next frame and current mocap buffer
         frame, timestamp = self.ids_stream.getnext()
         corrected_timestamp = timestamp - self.latency_diff
@@ -145,6 +147,27 @@ class StreamMatcher:
             return_pos = T_base2cam[0:3, 3]
             return_rot = R.from_matrix(T_base2cam[0:3, 0:3]).as_quat(scalar_first=False)
 
+        if self.undistort:
+            h, w = self.get_image_size()
+            fx = camera_matrix[0][0]
+            fy = camera_matrix[1][1]
+            cx = w / 2
+            cy = h / 2
+            new_camera_matrix = np.array([[fx, 0, cx],
+                                            [0, fy, cy],
+                                            [0, 0, 1]])
+            frame = cv2.undistort(frame, camera_matrix, distortion, None, new_camera_matrix)
+
+        if self.downsampling > 1:
+            frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
+            focal /= self.downsampling
+
+        if return_tensor:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = torch.from_numpy(frame).permute(2, 0, 1).cuda().float() / 255.0
+            return_transform = torch.from_numpy(return_transform).cuda().float()
+            focal = torch.tensor(focal).cuda().float().unsqueeze(0)
+
         info = {"pos" : return_pos,
                 "rot" : return_rot,
                 "m_pos" : m_pos,
@@ -156,7 +179,7 @@ class StreamMatcher:
                 "distortion" : distortion,
                 "Rt" : return_transform, # for on-the-fly-nvs
                 "focal" : focal, # for on-the-fly-nvs
-                "is_test" : False,} # for on-the-fly-nvss
+                "is_test" : False,} # for on-the-fly-nvs
         
         return frame, info
 
