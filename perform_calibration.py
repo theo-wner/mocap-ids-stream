@@ -41,21 +41,21 @@ print(f"Using calibration path: {calib_path}")
 filter_poses(calib_path)
 
 # Define Chessboard
+"""
 # Small one:
 chessboard = {'num_corners_down' : 23,
                 'num_corners_right' : 16,
                 'origin_marker_pos_down' : 10,
                 'origin_marker_pos_right' : 7,
                 'square_size' : 16}
-
 """
+
 # Large one:
 chessboard = {'num_corners_down' : 24,
                 'num_corners_right' : 17,
                 'origin_marker_pos_down' : 11,
                 'origin_marker_pos_right' : 7,
                 'square_size' : 30}
-"""
 
 # Write Checkerboard to file
 cd = chessboard['num_corners_down']
