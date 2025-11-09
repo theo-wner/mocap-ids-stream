@@ -25,45 +25,23 @@ def perform_hand_eye_calibration(dataset_path):
     R_tool2base, t_tool2base = read_poses(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt")) # Position of TCS with respect to BCS <-> performs change of basis from TCS to BCS
 
     # Perform OpenCV-based linear Hand-Eye-Calibration ---------------------------------------
-    R_cam2tool, t_cam2tool = cv2.calibrateHandEye(R_tool2base, t_tool2base, R_world2cam, t_world2cam, method=cv2.CALIB_HAND_EYE_PARK)
+    R_cam2tool, t_cam2tool = cv2.calibrateHandEye(R_tool2base, t_tool2base, R_world2cam, t_world2cam, method=cv2.CALIB_HAND_EYE_DANIILIDIS)
     T_cam2tool = np.eye(4)
     T_cam2tool[:3, :3] = R_cam2tool
     T_cam2tool[:3, 3] = t_cam2tool.flatten() # Hand-Eye-Pose: Position of CCS with respect to TCS <-> performs change of basis from CCS to TCS
     T_tool2cam = np.linalg.inv(T_cam2tool) # Hand-Eye-Pose: Position of TCS with respect to CCS <-> performs change of basis from TCS to CCS
 
-    # Save Hand-Eye-Pose ---------------------------------------------------------------------
-    np.savetxt(os.path.join(dataset_path, "sparse", "0", "T_tool2cam.txt"), T_tool2cam, fmt='%.6f')
-    print(f"[✓] Saved Hand-Eye-Pose to {os.path.join(dataset_path, "sparse", "0", "T_tool2cam.txt")}")
-    # To retrieve the desired Base-to-Camera Transformation Matrices, perform:
-    # T_base2cam = T_tool2cam @ T_base2tool -> Position of BCS with respect to CCS <-> performs change of basis from BCS to CCS
-
-def perform_robot_world_hand_eye_calibration(dataset_path):
-    """
-    This function performs robot-world-hand-eye-calibration using the "robot"-poses retrieved by MoCap and the camera poses retrieved by camera calibration.
-    It then saves the calculated Hand-Eye-Pose as well as the Robot-World pose to a file.
-
-    Args:
-        dataset_path (str): The path where the dataset is saved, which contains the checkerboard poses the MoCap poses,
-                            and a file 'checkerboard_points.pkl' to store the object points and image points for computation of the reprojection error.
-    """
-    # Read poses -----------------------------------------------------------------------------
-    R_world2cam, t_world2cam = read_poses(os.path.join(dataset_path, "sparse", "0", "images_checkerboard.txt"))
-    R_tool2base, t_tool2base = read_poses(os.path.join(dataset_path, "sparse", "0", "images_mocap.txt"))
-
-    # Invert MoCap poses ---------------------------------------------------------------------
-    R_base2tool = [np.linalg.inv(entry) for entry in R_tool2base]
-    t_base2tool = [-entry_r @ entry_t for entry_r, entry_t in zip(R_base2tool, t_tool2base)]
-
-    # Perform OpenCV-based linear Hand-Eye-Robot-World-Calibration ---------------------------
-    R_base2world, t_base2world, R_tool2cam, t_tool2cam = cv2.calibrateRobotWorldHandEye(R_world2cam, t_world2cam, R_base2tool, t_base2tool, method=cv2.CALIB_ROBOT_WORLD_HAND_EYE_SHAH)
-
-    # Create homogenous transform matrices for saving
-    T_tool2cam = np.eye(4)
-    T_tool2cam[:3, :3] = R_tool2cam
-    T_tool2cam[:3, 3] = t_tool2cam.flatten()
-    T_base2world = np.eye(4)
-    T_base2world[:3, :3] = R_base2world
-    T_base2world[:3, 3] = t_base2world.flatten()
+    # Compute Base-World pose based on first pose --------------------------------------------
+    # Cheesy first pose-based strategy because we do nonlinear refinement anyways
+    T_world2cam = np.eye(4)
+    T_world2cam[:3, :3] = R_world2cam[0]
+    T_world2cam[:3, 3] = t_world2cam[0].flatten()
+    T_cam2world = np.linalg.inv(T_world2cam)
+    T_tool2base = np.eye(4)
+    T_tool2base[:3, :3] = R_tool2base[0]
+    T_tool2base[:3, 3] = t_tool2base[0].flatten()
+    T_base2tool = np.linalg.inv(T_tool2base)    
+    T_base2world = T_cam2world @ T_tool2cam @ T_base2tool
 
     # Save Hand-Eye-Pose and Base-World-Pose----------------------------------------------------
     np.savetxt(os.path.join(dataset_path, "sparse", "0", "T_tool2cam.txt"), T_tool2cam, fmt='%.6f')
