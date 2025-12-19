@@ -128,8 +128,8 @@ class MoCapStream:
         unique_times = times[unique_indices]
 
         interest_idx = np.argmax(unique_ys)
-        start_idx = interest_idx - 20
-        end_idx = interest_idx + 21
+        start_idx = interest_idx - 40
+        end_idx = interest_idx + 41
 
         selected_ys = unique_ys[start_idx:end_idx]
         selected_times = unique_times[start_idx:end_idx]

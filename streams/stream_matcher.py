@@ -7,6 +7,7 @@ Author:
 
 import threading
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import cv2
 import torch
@@ -215,46 +216,101 @@ class StreamMatcher:
         # Extract times
         ids_time = ids_results["interest_time"]
         mocap_time = mocap_results["interest_time"]
+        t0_ids = ids_results["original_times"][0]
+        t0_mocap = mocap_results["original_times"][0]
         time_diff = (ids_time - mocap_time) * 1000  # ms
 
         # Plot results
+        # --- LaTeX-style / mathtext ---
+        plt.style.use('default')
+        plt.rcParams.update({
+            'font.size': 15,
+            'mathtext.fontset': 'stix',
+            'font.family': 'STIXGeneral',
+            'axes.formatter.useoffset': False,  # no scientific notation
+        })
+
+        # --- Compute common x-axis limits ---
+        xmin = min(
+            ids_results["original_times"].min(),
+            ids_results["interp_times"].min(),
+            ids_time.min(),
+            mocap_results["original_times"].min(),
+            mocap_results["interp_times"].min(),
+            mocap_time.min(),
+        )
+        xmax = max(
+            ids_results["original_times"].max(),
+            ids_results["interp_times"].max(),
+            ids_time.max(),
+            mocap_results["original_times"].max(),
+            mocap_results["interp_times"].max(),
+            mocap_time.max(),
+        )
+
+        # --- Shift all times to start at zero (relative) ---
+        ids_times_rel = ids_results["original_times"] - xmin
+        ids_interp_rel = ids_results["interp_times"] - xmin
+        ids_interest_rel = ids_time - xmin
+
+        mocap_times_rel = mocap_results["original_times"] - xmin
+        mocap_interp_rel = mocap_results["interp_times"] - xmin
+        mocap_interest_rel = mocap_time - xmin
+
+        # --- Create subplots ---
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-        # IDS
-        ax1.plot(ids_results["original_times"], ids_results["original_rows"], 'o', label="Original Points")
-        ax1.plot(ids_results["interp_times"], ids_results["interp_rows"], '-', label="Cubic spline")
-        ax1.plot(ids_time, ids_results["interest_row"], 'rx', markersize=10, label="Min Row")
-        ax1.set_xlabel("Time (s)")
-        ax1.set_ylabel("Row coordinate (px)")
+        # --- IDS plot ---
+        ax1.plot(ids_times_rel, ids_results["original_rows"], 'o', label="Original Points", markersize=4)
+        ax1.plot(ids_interp_rel, ids_results["interp_rows"], '-', label="Cubic Spline")
+        ax1.plot(ids_interest_rel, ids_results["interest_row"], 'rx', markersize=10, label="Minimum Row")
+        ax1.set_xlim(0, xmax - xmin)
+        ax1.set_xlabel("Time (ms)")
+        ax1.set_ylabel("Row (px)")
         ax1.invert_yaxis()
         ax1.grid(True)
-        ax1.legend()
+        ax1.legend(loc='lower left')  # locked legend
         ax1.set_title("Cam Sync Event")
+
+        # IDS sampling info
         ids_interval = ids_results["original_times"][-1] - ids_results["original_times"][0]
         ids_samples = len(ids_results["original_times"])
         ids_fps = ids_samples / ids_interval if ids_interval > 0 else 0
         ids_dt_ms = (ids_interval / (ids_samples - 1) * 1000) if ids_samples > 1 else 0
-        ax1.text(0.95, 0.95, f"Sampling frequency: {ids_fps:.2f} Hz\nSampling interval: {ids_dt_ms:.2f} ms",
-                 transform=ax1.transAxes, ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
+        ax1.text(0.95, 0.05, f"Sampling Frequency: {ids_fps:.2f} Hz\nSampling Interval: {ids_dt_ms:.2f} ms",
+                transform=ax1.transAxes, ha='right', va='bottom', bbox=dict(facecolor='white', alpha=0.7))
 
-        # MoCap
-        ax2.plot(mocap_results["original_times"], mocap_results["original_ys"], 'o', label="Original Points")
-        ax2.plot(mocap_results["interp_times"], mocap_results["interp_ys"], '-', label="Cubic spline")
-        ax2.plot(mocap_time, mocap_results["interest_y"], 'rx', markersize=10, label="Max Y")
-        ax2.set_xlabel("Time (s)")
-        ax2.set_ylabel("Y position")
+        # --- MoCap plot ---
+        ax2.plot(mocap_times_rel, mocap_results["original_ys"], 'o', label="Original Points", markersize=4)
+        ax2.plot(mocap_interp_rel, mocap_results["interp_ys"], '-', label="Cubic Spline")
+        ax2.plot(mocap_interest_rel, mocap_results["interest_y"], 'rx', markersize=10, label="Maximum Y")
+        ax2.set_xlim(0, xmax - xmin)
+        ax2.set_xlabel("Time (ms)")
+        ax2.set_ylabel("Y (m)")
         ax2.grid(True)
-        ax2.legend()
+        ax2.legend(loc='lower left')  # locked legend
         ax2.set_title("MoCap Sync Event")
+
+        # MoCap sampling info
         mocap_interval = mocap_results["original_times"][-1] - mocap_results["original_times"][0]
         mocap_samples = len(mocap_results["original_times"])
         mocap_fps = mocap_samples / mocap_interval if mocap_interval > 0 else 0
         mocap_dt_ms = (mocap_interval / (mocap_samples - 1) * 1000) if mocap_samples > 1 else 0
-        ax2.text(0.95, 0.95, f"Sampling frequency: {mocap_fps:.2f} Hz\nSampling interval: {mocap_dt_ms:.2f} ms",
-                 transform=ax2.transAxes, ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
+        ax2.text(0.95, 0.05, f"Sampling Frequency: {mocap_fps:.2f} Hz\nSampling Interval: {mocap_dt_ms:.2f} ms",
+                transform=ax2.transAxes, ha='right', va='bottom', bbox=dict(facecolor='white', alpha=0.7))
 
+        # --- Format x-axis to ms ---
+        for ax in (ax1, ax2):
+            ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x*1000:.0f}"))
+            ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+
+        # --- Format y-axis of MoCap to 3 decimals ---
+        ax2.yaxis.set_major_formatter(mticker.FuncFormatter(lambda y, _: f"{y:.3f}"))
+
+        # --- Figure title ---
         plt.suptitle(f"Time difference (IDS - MoCap): {time_diff:.2f} ms\nPress 'k' to keep, 'r' to reject")
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.show()
 
         # Wait for user decision
         decision = {"keep": None}

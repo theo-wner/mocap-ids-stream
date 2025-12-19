@@ -29,7 +29,7 @@ cam_stream = IDSStream(
 mocap_stream = MoCapStream(
     client_ip="172.22.147.168",
     server_ip="172.22.147.182",
-    buffer_size=20
+    buffer_size=1000
 )
 
 matcher = StreamMatcher(cam_stream, mocap_stream, rb_id=2)
