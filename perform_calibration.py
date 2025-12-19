@@ -22,7 +22,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from calibration.utils import filter_poses, apply_hand_eye_transform
 from calibration.camera_calibration import perform_camera_calibration
-from calibration.hand_eye_calibration import perform_hand_eye_calibration, perform_robot_world_hand_eye_calibration, refine_hand_eye_pose
+from calibration.hand_eye_calibration import perform_hand_eye_calibration, refine_hand_eye_pose
 
 # Get dataset name from command line argument or use the one with the latest timestamp as default
 parser = argparse.ArgumentParser(description="Calibration Script")
@@ -41,6 +41,16 @@ print(f"Using calibration path: {calib_path}")
 filter_poses(calib_path)
 
 # Define Chessboard
+"""
+# Small one:
+chessboard = {'num_corners_down' : 23,
+                'num_corners_right' : 16,
+                'origin_marker_pos_down' : 10,
+                'origin_marker_pos_right' : 7,
+                'square_size' : 16}
+"""
+
+# Large one:
 chessboard = {'num_corners_down' : 24,
                 'num_corners_right' : 17,
                 'origin_marker_pos_down' : 11,
@@ -63,11 +73,11 @@ with open(checkerboard_file, "w") as f:
 
 # Perform camera calibration
 print("Performing camera calibration...")
-perform_camera_calibration(calib_path, chessboard)
+#perform_camera_calibration(calib_path, chessboard)
 
 # Perform hand-eye calibration
 print("Performing hand-eye calibration...")
-perform_robot_world_hand_eye_calibration(calib_path)
+perform_hand_eye_calibration(calib_path)
 
 # Refine hand-eye calibration
 print("Refining Hand-Eye-Calibration...")
